@@ -1,6 +1,8 @@
 import datetime
 import numpy as np
 
+import sys, os
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..','agent'))
 from agent import Q_agent
 from envSimple import env_Simple
 
