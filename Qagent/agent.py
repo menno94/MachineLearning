@@ -22,10 +22,10 @@ class Q_agent:
     
     def buildmodel(self, N, learning_rate):
         model = Sequential()
-        model.add(InputLayer(input_shape=(N[0],)))
-        for layer in range(len(N)-2):
-            model.add(Dense(N[layer+1], activation='relu'))
-        model.add(Dense(N[-1], activation='linear'))
+        model.add(InputLayer(input_shape = (np.prod(self.env.state_shape),) )) # Vreeeeeemd
+        for layer in range(len(N)):
+            model.add(Dense(N[layer], activation='relu'))
+        model.add(Dense(self.env.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
         print("Finished building the model")
         return model
@@ -57,22 +57,21 @@ class Q_agent:
         model = load_model(fname)
         self.model = model
     
-    def create_model(N, learning_rate):
+    def create_model(self,N, learning_rate):
         '''
-        Create model from scratch
+        Create model from scratch.
+        N = list with the neurons in the hidden layers
         '''
         self.model = self.buildmodel(N, learning_rate)
         
 
     def train(self, 
-                      N,                    #ADDED FOR LAYERS & ACTIVATIONS
                       episodes          =   100,
                       epsilon           =   1, 
                       epsilon_min       =   0.01, 
                       epsilon_decay     =   0.9999, 
                       batch_size        =   50, 
-                      gamma             =   0.95,
-                      learning_rate     =   0.001, 
+                      gamma             =   0.95, 
                       memory_length     =   1000,
                       breaks            =   10):
         self.epsilon = epsilon
