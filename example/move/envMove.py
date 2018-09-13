@@ -4,7 +4,8 @@ from random import randint
 class env_move:
 
     def __init__(self):
-        self.state_shape = (2,16)            # (X,X)
+        self.field_shape = (2,2)
+        self.state_shape = (2,np.prod(self.field_shape))            # (X,X)
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
         self.reward_win = 10             # Default 10
@@ -17,7 +18,7 @@ class env_move:
         '''
         Determine wheter there are 3 in a row. Player must be -1 or 1.
         '''
-        s     = state.reshape(2,16).copy()
+        s     = state.reshape(self.state_shape).copy()
         temp1 = s[0,:]
         temp2 = s[1,:]
         for i in range(len(temp1)):
@@ -31,7 +32,8 @@ class env_move:
         return False    # False by default
     
     def get_constrain(self,state):
-        temp = state.reshape(2,16)[0].copy().reshape(4,4)       #goed naar kijken!!!
+        temp = state.reshape(self.state_shape)[0].copy().reshape(self.field_shape)       #goed naar kijken!!!
+        print(temp)
         ind = []
         if np.max(temp[:,0]) ==1:
             ind.append(3)
@@ -46,11 +48,11 @@ class env_move:
 
     def get_initial_state(self):
         state = np.zeros(self.state_shape)
-        ind = randint(0,15)
+        ind = randint(0,self.state_shape[1]-1)
         state[1,ind] = 1
 
         while True:
-            ind = randint(0,15)
+            ind = randint(0,self.state_shape[1]-1)
             if state[1,ind]==1:
                 pass
             else:
@@ -65,7 +67,7 @@ class env_move:
         Returns the new state based on the action. Player must be -1 or 1.
         '''
         s = state
-        temp = s[0,:].copy().reshape(4,4)
+        temp = s[0,:].copy().reshape(self.field_shape)
         row, col = np.where(temp==1)
         row, col = row[0],col[0]
         temp[:] = 0
@@ -103,12 +105,12 @@ class env_move:
             state = self.get_initial_state()
             player = np.argmax(state[0,:])
             treasure = np.argmax(state[1,:])
-            row_p = player//4; col_p = player%4
-            row_t = treasure//4; col_t = treasure%4
+            row_p = player//self.field_shape[1]; col_p = player%self.field_shape[1]
+            row_t = treasure//self.field_shape[0]; col_t = treasure%self.field_shape[0]
             optimal_count = abs(col_p-col_t) + abs(row_p-row_t)   
             while True:
                 count += 1
-                act_values = model.predict(state.reshape(1,32))
+                act_values = model.predict(state.reshape(1,np.prod(self.state_shape)))
                 ind = self.get_constrain(state)
                 act_values[0,ind] = -1000
                 action = np.argmax(act_values)

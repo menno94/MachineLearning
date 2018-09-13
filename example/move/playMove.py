@@ -10,11 +10,11 @@ if __name__ =='__main__':
     env = env_move()
     Q = Q_agent(env)
     now = datetime.datetime.now()
-    Q.train(N                   =   [np.prod(env.state_shape) ,env.action_size],
-            episodes            =   50000,
+    Q.train(N                   =   [np.prod(env.state_shape), 36, env.action_size],
+            episodes            =   5000,
             epsilon             =   1, 
             epsilon_min         =   0.15, 
-            epsilon_decay       =   0.996, 
+            epsilon_decay       =   0.96, 
             batch_size          =   32, 
             gamma               =   0.9,
             learning_rate       =   1e-3, 
@@ -28,15 +28,15 @@ if __name__ =='__main__':
     ## test
     for i in range(10):
         state = env.get_initial_state()
-        board = np.zeros((1,16))
+        board = np.zeros((1,env.state_shape[1]))
         while True:
             print('----------------------------')
-            ind = np.where(state.reshape(2,16)[0,:]==1)
-            ind2 = np.where(state.reshape(2,16)[1,:]==1)
+            ind = np.where(state.reshape(env.state_shape)[0,:]==1)
+            ind2 = np.where(state.reshape(env.state_shape)[1,:]==1)
             print(ind,ind2)
             board[0,ind] = 1
             board[0,ind2] = -1
-            print(board.reshape(4,4))
+            print(board.reshape(env.field_shape))
             input("Press Enter to continue...")
             Q.training = False
             A = Q.get_action(state)
