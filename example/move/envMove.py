@@ -98,7 +98,7 @@ class env_move:
         # Define metric of current acquired skill 
         # Return scalar score value
         score = 0 #Perfect network scores 0 on test
-        for i in range(20):
+        for i in range(50):
             count = 0
             state = self.get_initial_state()
             player = np.argmax(state[0,:])

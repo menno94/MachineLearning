@@ -2,7 +2,7 @@ import datetime
 import numpy as np
 
 import sys, os
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..','agent'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..','Qagent'))
 from agent import Q_agent
 from envSimple import env_Simple
 
@@ -22,7 +22,7 @@ if __name__ =='__main__':
     Q = Q_agent(env)
     now = datetime.datetime.now()
     Q.train(N                   =   [np.prod(env.state_shape), env.action_size],
-            episodes            =   200,
+            episodes            =   1000,
             epsilon             =   1, 
             epsilon_min         =   0.4, 
             epsilon_decay       =   0.9, 

@@ -15,7 +15,7 @@ class env_Simple:
         self.players = 1                # (1 or 2)
         self.reward_win = 10             # Default 10
         self.reward_draw = None            # Default none if no draw possible
-        self.reward_notdone = -5         # Default -1
+        self.reward_notdone = -1         # Default -1
 
     def check_win(self,state):
         # Define if state is winning where state[0]=player who last played

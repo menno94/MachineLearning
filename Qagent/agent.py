@@ -25,7 +25,7 @@ class Q_agent:
         for layer in range(len(N)-2):
             model.add(Dense(N[layer+1], activation='relu'))
         model.add(Dense(N[-1], activation='linear'))
-        model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mse'])
+        model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
         print("Finished building the model")
         return model
 
@@ -110,7 +110,7 @@ class Q_agent:
                         target = reward
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
                     target_f[0][action] = target
-                    self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
+                    stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
                     
 #                print('End game number {} | epsilon={}'.format(e, self.epsilon))
             if e % breaks == 0 and e > 0:
@@ -120,5 +120,6 @@ class Q_agent:
                 break_time = time.time() - start_time
                 time_left = break_time*(float(episodes)/float(e)-1)
                 print("eps:",round(self.epsilon,2),scores[-1],e,'/',episodes,'ETA: '+'%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60))
+                print(stats.history['mean_absolute_error'])
         plt.plot(scores)
         
