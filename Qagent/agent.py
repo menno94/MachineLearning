@@ -115,7 +115,7 @@ class Q_agent:
                         break
     
             ## train netwerk
-            if len(memory) > batch_size:
+            if len(memory) >= batch_size:
                 minibatch = random.sample(memory, batch_size)
                 for state, action, reward, next_state, done in minibatch:
                     if not done:
@@ -127,13 +127,15 @@ class Q_agent:
                     stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
                     
 #                print('End game number {} | epsilon={}'.format(e, self.epsilon))
-            if e % breaks == 0 and e > 0:
-                if self.epsilon > epsilon_min:
-                    self.epsilon *= epsilon_decay
-                scores.append(self.env.test_skill(self.model))
-                break_time = time.time() - start_time
-                time_left = break_time*(float(episodes)/float(e)-1)
-                print("eps:",round(self.epsilon,2),scores[-1],e,'/',episodes,'ETA: '+'%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60))
-                print(stats.history['mean_absolute_error'])
+                if e % breaks == 0 and e > 0:
+                    if self.epsilon > epsilon_min:
+                        self.epsilon *= epsilon_decay
+                    scores.append(self.env.test_skill(self.model))
+                    break_time = time.time() - start_time
+                    time_left = break_time*(float(episodes)/float(e)-1)
+                    print("eps:",round(self.epsilon,2),scores[-1],e,'/',episodes,'ETA: '+'%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60))
+                    print(stats.history['mean_absolute_error'])
         plt.plot(scores)
+        plt.savefig('scores.png')
+        plt.close()
         
