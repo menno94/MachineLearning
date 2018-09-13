@@ -1,6 +1,7 @@
 from keras.models import Sequential
 from keras.layers import Activation, InputLayer, Dense
 from keras.optimizers import Nadam
+from keras.models import load_model
 import random
 import numpy as np
 import time
@@ -43,11 +44,12 @@ class Q_agent:
         action = np.argmax(act_values)
         return action
 
-    def save_weights(self,fname):
-        self.model.save_weights(fname)
+    def save_model(self, fname):     
+        self.model.save(fname)
 
-    def set_weights(self,fname):
-        self.model.load_weights(fname, by_name=False)
+    def set_model(self,fname):
+        model = load_model(fname)
+        self.model = model
 
     def train(self, 
                       N,                    #ADDED FOR LAYERS & ACTIVATIONS
