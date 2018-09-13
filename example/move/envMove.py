@@ -4,7 +4,7 @@ from random import randint
 class env_move:
 
     def __init__(self):
-        self.field_shape = (2,2)
+        self.field_shape = (1,3)
         self.state_shape = (2,np.prod(self.field_shape))            # (X,X)
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
@@ -33,7 +33,6 @@ class env_move:
     
     def get_constrain(self,state):
         temp = state.reshape(self.state_shape)[0].copy().reshape(self.field_shape)       #goed naar kijken!!!
-        print(temp)
         ind = []
         if np.max(temp[:,0]) ==1:
             ind.append(3)

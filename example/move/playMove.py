@@ -28,6 +28,7 @@ if __name__ =='__main__':
     ## test
     for i in range(10):
         state = env.get_initial_state()
+        Q.training = False
         board = np.zeros((1,env.state_shape[1]))
         while True:
             print('----------------------------')
@@ -38,7 +39,6 @@ if __name__ =='__main__':
             board[0,ind2] = -1
             print(board.reshape(env.field_shape))
             input("Press Enter to continue...")
-            Q.training = False
             A = Q.get_action(state)
             next_state = env.get_next_state(state, A)
             state = next_state
