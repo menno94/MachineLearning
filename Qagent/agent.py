@@ -56,6 +56,13 @@ class Q_agent:
         '''
         model = load_model(fname)
         self.model = model
+    
+    def create_model(N, learning_rate):
+        '''
+        Create model from scratch
+        '''
+        self.model = self.buildmodel(N, learning_rate)
+        
 
     def train(self, 
                       N,                    #ADDED FOR LAYERS & ACTIVATIONS
@@ -69,7 +76,7 @@ class Q_agent:
                       memory_length     =   1000,
                       breaks            =   10):
         self.epsilon = epsilon
-        self.model = self.buildmodel(N, learning_rate)
+        
         ## envionment settings
         memory = []
         scores = []
