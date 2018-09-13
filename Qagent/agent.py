@@ -45,9 +45,15 @@ class Q_agent:
         return action
 
     def save_model(self, fname):     
+        '''
+        Stores the model at the given path
+        '''
         self.model.save(fname)
 
     def set_model(self,fname):
+        '''
+        Loads the model from a given path
+        '''
         model = load_model(fname)
         self.model = model
 
