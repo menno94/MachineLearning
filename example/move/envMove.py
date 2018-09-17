@@ -4,7 +4,7 @@ from random import randint
 class env_move:
 
     def __init__(self):
-        self.field_shape = (1,3)
+        self.field_shape = (3,3)
         self.state_shape = (2,np.prod(self.field_shape))            # (X,X)
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
@@ -80,7 +80,7 @@ class env_move:
             col =col - 1
 
         temp[row,col] = 1
-        s[0,:] = temp.flatten()
+        s[0,:] = temp.reshape(np.prod(self.field_shape))
         self.counter += 1
         return s
 
@@ -99,12 +99,13 @@ class env_move:
         # Define metric of current acquired skill 
         # Return scalar score value
         score = 0 #Perfect network scores 0 on test
+        test_games = 50
         for i in range(50):
             count = 0
             state = self.get_initial_state()
             player = np.argmax(state[0,:])
             treasure = np.argmax(state[1,:])
-            row_p = player//self.field_shape[1]; col_p = player%self.field_shape[1]
+            row_p = player//self.field_shape[0]; col_p = player%self.field_shape[0]
             row_t = treasure//self.field_shape[0]; col_t = treasure%self.field_shape[0]
             optimal_count = abs(col_p-col_t) + abs(row_p-row_t)   
             while True:
