@@ -50,6 +50,7 @@ class Q_agent:
         '''
         self.model.save(fname)
 
+
     def set_model(self,fname):
         '''
         Loads the model from a given path
@@ -75,10 +76,13 @@ class Q_agent:
                       memory_length     =   1000,
                       breaks            =   10):
         self.epsilon = epsilon
-        
+        ## store statistics
+        scores = []
+        accur = []
+        loss = []
+        epoch_axis = []
         ## envionment settings
         memory = []
-        scores = []
         start_time = time.time()
         for e in range(episodes):
             state = self.env.get_initial_state()
@@ -126,16 +130,40 @@ class Q_agent:
                     target_f[0][action] = target
                     stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
                     
-#                print('End game number {} | epsilon={}'.format(e, self.epsilon))
-                if e % breaks == 0 and e > 0:
-                    if self.epsilon > epsilon_min:
+                    
+                if e % breaks == 0: #and e > 0 weg gehaald.
+                    if self.epsilon > epsilon_min: #todo: verplaatsen
                         self.epsilon *= epsilon_decay
+                        
                     scores.append(self.env.test_skill(self.model))
+                    accur.append(stats.history['mean_absolute_error'][0])
+                    loss.append(stats.history['loss'][0])
+                    epoch_axis.append(e)
                     break_time = time.time() - start_time
-                    time_left = break_time*(float(episodes)/float(e)-1)
-                    print("eps:",round(self.epsilon,2),scores[-1],e,'/',episodes,'ETA: '+'%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60))
-                    print(stats.history['mean_absolute_error'])
-        plt.plot(scores)
-        plt.savefig('scores.png')
+                    time_left = break_time * (float(episodes)/float(e+1))
+                    eta = '%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60)
+                    print('#### {} % | eps={} | score={} | ETA={} ####'.format(e/episodes*100, round(self.epsilon,2),scores[-1], eta ))
+                    print( 'MAE={} loss={}'.format(stats.history['mean_absolute_error'][0], stats.history['loss'][0]))
+        ## plot results
+        plt.figure(figsize=[10,10])
+        plt.suptitle("Results", fontsize=16)
+        ax1 = plt.subplot(3,1,1)
+        ax1.plot(epoch_axis, scores,'.-')
+        plt.title('Scores')
+        plt.grid('on')
+        ax1.set_xticklabels([])
+        
+        ax2 = plt.subplot(3,1,2)
+        ax2.plot(epoch_axis,accur,'.-')
+        plt.title('Accuracy')
+        plt.grid('on')
+        ax2.set_xticklabels([])
+        plt.subplot(3,1,3)
+        
+        plt.plot(epoch_axis,loss,'.-')
+        plt.title('loss')
+        plt.grid('on')
+        plt.xlabel('Episode')
+        plt.savefig('results.png')
         plt.close()
         
