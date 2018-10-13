@@ -4,7 +4,7 @@ from random import randint
 class env_move:
 
     def __init__(self):
-        self.field_shape = (3,3)
+        self.field_shape = (3,2)
         self.state_shape = (2,np.prod(self.field_shape))            # (X,X)
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
