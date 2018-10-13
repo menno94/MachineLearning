@@ -11,7 +11,8 @@ if __name__ =='__main__':
     Q.set_model('Move_v1')
     
     ## test
-    for i in range(10):
+    stop = 'no'
+    while stop!='q':
         state = env.get_initial_state()
         Q.training = False
         board = np.zeros((1,env.state_shape[1]))
@@ -22,7 +23,8 @@ if __name__ =='__main__':
             board[0,ind] = 1
             board[0,ind2] = -1
             print(board.reshape(env.field_shape))
-            input("Press Enter to continue...")
+            stop = input("Press Enter to continue or q to quite")
+            print(stop=='q')
             A, value = Q.get_action(state)
             print('Value={}'.format(value))
             next_state = env.get_next_state(state, A)
@@ -32,3 +34,7 @@ if __name__ =='__main__':
             if final_state==True:
                 print('+++++++ new game +++++++')
                 break
+            if stop=='q':
+                break
+            
+
