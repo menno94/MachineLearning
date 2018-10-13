@@ -10,16 +10,16 @@ if __name__ =='__main__':
     env = env_move()
     Q = Q_agent(env)
     now = datetime.datetime.now()
-    Q.create_model(N = [5],
+    Q.create_model(N = [5, 5],
                    learning_rate = 1e-3)
 #    Q.set_model('Move_v1')
-    Q.train(episodes            =   200,
+    Q.train(episodes            =   10000,
             epsilon             =   1, 
             epsilon_min         =   0.15, 
             epsilon_decay       =   0.96, 
-            batch_size          =   10, 
+            batch_size          =   32, 
             gamma               =   0.9,
-            memory_length       =   50,
+            memory_length       =   1000,
             breaks              =   10)  # Show feedback every X episodes
     dt = (datetime.datetime.now()-now).total_seconds()
     print('Total time: {}'.format(dt))

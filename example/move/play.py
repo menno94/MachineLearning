@@ -24,9 +24,8 @@ if __name__ =='__main__':
             board[0,ind2] = -1
             print(board.reshape(env.field_shape))
             stop = input("Press Enter to continue or q to quite")
-            print(stop=='q')
-            A, value = Q.get_action(state)
-            print('Value={}'.format(value))
+            A, values = Q.get_action(state)
+            print('Values: up={} right={} down={} left={}'.format(round(values[0,0],2),round(values[0,1],2),round(values[0,2],2),round(values[0,3],2)))
             next_state = env.get_next_state(state, A)
             state = next_state
             board[:] = 0

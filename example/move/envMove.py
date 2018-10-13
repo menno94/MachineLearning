@@ -5,7 +5,7 @@ class env_move:
 
     def __init__(self):
         self.field_shape = (3,2)
-        self.state_shape = (2,np.prod(self.field_shape))            # (X,X)
+        self.state_shape = (2,np.prod(self.field_shape))            # (X,X) # first dimension is player second dimension treasure
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
         self.reward_win = 10             # Default 10
@@ -34,13 +34,13 @@ class env_move:
     def get_constrain(self,state):
         temp = state.reshape(self.state_shape)[0].copy().reshape(self.field_shape)       #goed naar kijken!!!
         ind = []
-        if np.max(temp[:,0]) ==1:
+        if np.max(temp[:,0]) ==1: # left
             ind.append(3)
-        if np.max(temp[:,-1]) ==1:
+        if np.max(temp[:,-1]) ==1: # right
             ind.append(1)
-        if np.max(temp[0,:]) ==1:
+        if np.max(temp[0,:]) ==1: # Up
             ind.append(0)
-        if np.max(temp[-1,:]) ==1:
+        if np.max(temp[-1,:]) ==1: # down
             ind.append(2)
 
         return ind
@@ -70,13 +70,13 @@ class env_move:
         row, col = np.where(temp==1)
         row, col = row[0],col[0]
         temp[:] = 0
-        if action == 0:
+        if action == 0: # Up
             row = row-1
-        elif action==1:
+        elif action==1: # Right
             col = col +1
-        elif action==2:
+        elif action==2: # Down
             row = row +1
-        elif action==3:
+        elif action==3: # left
             col =col - 1
 
         temp[row,col] = 1
