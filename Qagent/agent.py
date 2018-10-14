@@ -14,7 +14,7 @@ class Q_agent:
         self.env = env
         self.training = training
         ## use frozen network with a delay for the target value
-        self.delay_model = True
+        self.delay_model = False
         
     def act(self, state):
         action = self.get_action(state)
