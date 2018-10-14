@@ -14,7 +14,7 @@ class Q_agent:
         self.env = env
         self.training = training
         ## use frozen network with a delay for the target value
-        self.delay_model = False
+        self.delay_model = True
         
     def act(self, state):
         action = self.get_action(state)
@@ -69,6 +69,8 @@ class Q_agent:
         N = list with the neurons in the hidden layers
         '''
         self.model = self.buildmodel(N, learning_rate)
+        ## delay
+        self.previous_model = self.buildmodel(N, learning_rate)
         
 
     def train(self, 
@@ -87,6 +89,7 @@ class Q_agent:
         loss = []
         epoch_axis = []
         R = []
+        eps_hist = []
         ## envionment settings
         memory = []
         start_time = time.time()
@@ -130,15 +133,14 @@ class Q_agent:
             ## train netwerk
             if len(memory) >= batch_size:
                 ## model from previous episode
-                previous_model = self.model
-                previous_model.load_weights('temp.h5')
+                self.previous_model.load_weights('temp.h5')
                 minibatch = random.sample(memory, batch_size)
                 for state, action, reward, next_state, done in minibatch:
                     if not done:
                         if self.delay_model ==False:
                             target = reward + gamma * np.amax(self.model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
                         else:
-                            target = reward + gamma * np.amax(previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                            target = reward + gamma * np.amax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
                     else:
                         target = reward
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
@@ -155,6 +157,7 @@ class Q_agent:
                     accur.append(stats.history['mean_absolute_error'][0])
                     loss.append(stats.history['loss'][0])
                     R.append(total_reward)
+                    eps_hist.append(round(self.epsilon,2))
                     epoch_axis.append(e)
                     break_time = time.time() - start_time
                     time_left = break_time * (float(episodes)/float(e+1)) - break_time
@@ -166,25 +169,31 @@ class Q_agent:
         ## plot results
         plt.figure(figsize=[10,10])
         plt.suptitle("Results", fontsize=16)
-        ax1 = plt.subplot(4,1,1)
+        ax1 = plt.subplot(5,1,1)
         ax1.plot(epoch_axis, scores,'.-')
         plt.title('Scores')
         plt.grid('on')
         ax1.set_xticklabels([])
- 
-        ax2 = plt.subplot(4,1,2)
+
+        ax2 = plt.subplot(5,1,2)
+        ax2.plot(epoch_axis,eps_hist,'.-')
+        plt.title('Epsilon')
+        plt.grid('on')
+        ax2.set_xticklabels([])
+
+        ax2 = plt.subplot(5,1,3)
         ax2.plot(epoch_axis,R,'.-')
         plt.title('Total reward')
         plt.grid('on')
         ax2.set_xticklabels([])
        
-        ax2 = plt.subplot(4,1,3)
+        ax2 = plt.subplot(5,1,4)
         ax2.plot(epoch_axis,accur,'.-')
         plt.title('Accuracy')
         plt.grid('on')
         ax2.set_xticklabels([])
               
-        plt.subplot(4,1,4)
+        plt.subplot(5,1,5)
         plt.plot(epoch_axis,loss,'.-')
         plt.title('loss')
         plt.grid('on')
