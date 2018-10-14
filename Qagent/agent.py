@@ -89,6 +89,7 @@ class Q_agent:
         loss = []
         epoch_axis = []
         R = []
+        avg_reward = np.zeros(2)
         eps_hist = []
         ## envionment settings
         memory = []
@@ -129,7 +130,9 @@ class Q_agent:
                     state = next_state.copy()
                     if done:
                         break
-            
+            ## mean stats
+            avg_reward[1] = avg_reward[0] + (total_reward-avg_reward[0])/(e+1)
+
             ## train netwerk
             if len(memory) >= batch_size:
                 ## model from previous episode
@@ -156,7 +159,7 @@ class Q_agent:
                     scores.append(0)
                     accur.append(stats.history['mean_absolute_error'][0])
                     loss.append(stats.history['loss'][0])
-                    R.append(total_reward)
+                    R.append(avg_reward[1])
                     eps_hist.append(round(self.epsilon,2))
                     epoch_axis.append(e)
                     break_time = time.time() - start_time
@@ -182,7 +185,7 @@ class Q_agent:
 
         ax2 = plt.subplot(5,1,3)
         ax2.plot(epoch_axis,R,'.-')
-        plt.title('Total reward')
+        plt.title('Total (averaged) reward')
         plt.grid('on')
         ax2.set_xticklabels([])
        
