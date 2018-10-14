@@ -11,7 +11,7 @@ if __name__ =='__main__':
     now = datetime.datetime.now()
     Q.create_model(N = [10],
                    learning_rate = 1e-3)
-    Q.train(episodes            =   5000,
+    Q.train(episodes            =   500,
             epsilon             =   1, 
             epsilon_min         =   0.02,
             epsilon_decay       =   0.97, 
