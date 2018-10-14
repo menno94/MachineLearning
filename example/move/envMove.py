@@ -4,7 +4,7 @@ from random import randint
 class env_move:
 
     def __init__(self):
-        self.field_shape = (3,2)
+        self.field_shape = (1,4)
         self.state_shape = (2,np.prod(self.field_shape))            # (X,X) # first dimension is player second dimension treasure
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
@@ -65,7 +65,7 @@ class env_move:
         '''
         Returns the new state based on the action. Player must be -1 or 1.
         '''
-        s = state
+        s = state.copy() ### hier stond geen copy!!!!!!!!!!!!!!!!
         temp = s[0,:].copy().reshape(self.field_shape)
         row, col = np.where(temp==1)
         row, col = row[0],col[0]
