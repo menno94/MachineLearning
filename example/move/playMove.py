@@ -13,14 +13,14 @@ if __name__ =='__main__':
     Q.create_model(N = [10],
                    learning_rate = 1e-3)
 #    Q.set_model('Move_v1')
-    Q.train(episodes            =   500,
+    Q.train(episodes            =   1000,
             epsilon             =   1, 
             epsilon_min         =   0.02, 
             epsilon_decay       =   0.96, 
             batch_size          =   32,
-            gamma               =   0.5,
-            memory_length       =   100,
-            breaks              =   10)  # Show feedback every X episodes
+            gamma               =   0.9,
+            memory_length       =   250,
+            breaks              =   100)  # Show feedback every X episodes
     dt = (datetime.datetime.now()-now).total_seconds()
     print('Total time: {}'.format(dt))
 

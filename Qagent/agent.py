@@ -146,8 +146,8 @@ class Q_agent:
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
                     target_f[0][action] = target
                     stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
-                    
-                    
+                ## delay in network
+                self.model.save_weights('temp.h5')
                 if e % breaks == 0: #and e > 0 weg gehaald.
                     if self.epsilon > epsilon_min: #todo: verplaatsen uit if
                         self.epsilon *= epsilon_decay
@@ -164,8 +164,7 @@ class Q_agent:
                     eta = '%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60)
                     print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e/episodes*100,1), round(self.epsilon,2),scores[-1], eta ))
                     print( 'MAE={} loss={}'.format(stats.history['mean_absolute_error'][0], stats.history['loss'][0]))
-        ## delay in network
-        self.model.save_weights('temp.h5')
+
         ## plot results
         plt.figure(figsize=[10,10])
         plt.suptitle("Results", fontsize=16)

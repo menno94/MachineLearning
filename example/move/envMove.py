@@ -4,7 +4,7 @@ from random import randint
 class env_move:
 
     def __init__(self):
-        self.field_shape = (1,4)
+        self.field_shape = (3,5)
         self.state_shape = (2,np.prod(self.field_shape))            # (X,X) # first dimension is player second dimension treasure
         self.action_size = 4            # X
         self.players = 1                # (1 or 2)
