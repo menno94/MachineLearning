@@ -171,7 +171,7 @@ class Q_agent:
                         Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
                     Qtest.append(Qtesttmp[1])
                     ## test scores
-                    scores.append(self.env.test_skill(self.model))
+                    #scores.append(self.env.test_skill(self.model))
                     scores.append(0)
                     ## stats
                     accur.append(np.mean(errortmp))
@@ -222,8 +222,9 @@ class Q_agent:
         plt.grid('on')
         ax2.set_xticklabels([])
               
-        plt.subplot(6,1,6)
-        plt.plot(epoch_axis,loss,'.-')
+        ax = plt.subplot(6,1,6)
+        ax.plot(epoch_axis,loss,'.-')
+        ax.set_yscale('log')
         plt.title('loss')
         plt.grid('on')
         plt.xlabel('Episode')
