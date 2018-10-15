@@ -19,6 +19,38 @@ class env_TTT:
         self.reward_win = 10
         self.reward_draw = 1
         self.reward_notdone = -1
+        self.create_test_states()
+
+    def create_test_states(self):
+
+        state1 = self.get_initial_state()
+
+        state2 = self.get_initial_state()
+        state2[0,1] = 1
+
+        state3 = self.get_initial_state()
+        state3[0,6] = 1
+        state3[1, 0] = 1
+        state3[0, 7] = 1
+
+        state4 = self.get_initial_state()
+        state4[0,3] = 1
+        state4[1, 6] = 1
+        state4[0, 5] = 1
+
+        state6 = self.get_initial_state()
+        state6[0,8] = 1
+        state6[1, 4] = 1
+        state6[0, 5] = 1
+        state6[1, 1] = 1
+
+        state5 = self.get_initial_state()
+        state5[0,0] = 1
+        state5[1, 4] = 1
+        state5[0, 1] = 1
+        state5[1, 8] = 1
+
+        self.test_states = [state1, state2, state3, state4, state5, state6]
 
     def check_win(self,state):
         wins = np.array([[7,8,9], [4,5,6], [1,2,3],[7,4,1],[8,5,2],[9,6,3],[7,5,3],[9,5,1]]) - 1  
