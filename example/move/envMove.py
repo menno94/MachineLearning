@@ -13,6 +13,15 @@ class env_move:
         self.reward_notdone = -1         # Default -1
         self.counter = 0
         self.max_counter = 19
+        self.create_test_states()
+
+    def create_test_states(self):
+        test_states = []
+        for i in range(10):
+            test_states.append(self.get_initial_state())
+
+        self.test_states = test_states
+
     
     def check_win(self, state):
         '''
