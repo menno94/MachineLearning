@@ -82,19 +82,21 @@ class Q_agent:
                       gamma             =   0.95, 
                       memory_length     =   1000,
                       breaks            =   10):
+        ## set epsilion
         self.epsilon = epsilon
-        ## store statistics
-        scores = []
-        accur = []
-        loss = []
-        Qtest = []
-        epoch_axis = []
+        ## lists for sats
+        scores      = []
+        accur       = []
+        loss        = []
+        Qtest       = []
+        epoch_axis  = []
+        eps_hist = []
         R = []
         avg_reward = np.zeros(2)
-        eps_hist = []
         ## envionment settings
         memory = []
         start_time = time.time()
+        ## save initial weights
         self.model.save_weights('temp.h5')
         for e in range(episodes):
             state = self.env.get_initial_state()
@@ -140,8 +142,8 @@ class Q_agent:
                 ## model from previous episode
                 self.previous_model.load_weights('temp.h5')
                 minibatch = random.sample(memory, batch_size)
-                errortmp = []
-                losstmp = []
+                errortmp    = []
+                losstmp     = []
                 for state, action, reward, next_state, done in minibatch:
                     if not done:
                         if self.delay_model ==False:
@@ -153,38 +155,38 @@ class Q_agent:
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
                     target_f[0][action] = target
                     stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
-                    #update averaged error
-                    errortmp.append(stats.history['mean_absolute_error'][0])
-                    losstmp.append(stats.history['loss'][0])
-                ## delay in network
+                ## update averaged error based
+                errortmp.append(stats.history['mean_absolute_error'][0])
+                losstmp.append(stats.history['loss'][0])
+                ## save model weights
                 self.model.save_weights('temp.h5')
-                if e % breaks == 0: #and e > 0 weg gehaald.
-                    if self.epsilon > epsilon_min: #todo: verplaatsen uit if
-                        self.epsilon *= epsilon_decay
+                ## adjust opsilon
+                if self.epsilon > epsilon_min:
+                    self.epsilon *= epsilon_decay
+                if e % breaks == 0:
                     ## test values
                     Qtesttmp = np.zeros(2)
                     for i, item in enumerate(self.env.test_states):
                         value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
                         Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
                     Qtest.append(Qtesttmp[1])
-                    #scores.append(self.env.test_skill(self.model))
+                    ## test scores
+                    scores.append(self.env.test_skill(self.model))
                     scores.append(0)
+                    ## stats
                     accur.append(np.mean(errortmp))
                     loss.append(np.mean(losstmp))
                     R.append(avg_reward[1])
+                    avg_reward[:] = 0
                     eps_hist.append(round(self.epsilon,2))
                     epoch_axis.append(e)
+                    ## print results
                     break_time = time.time() - start_time
                     time_left = break_time * (float(episodes)/float(e+1)) - break_time
                     eta = '%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60)
                     print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e/episodes*100,1), round(self.epsilon,2),scores[-1], eta ))
-                    print( 'MAE={} loss={} R={}, Qmean={}'.format(np.mean(errortmp), np.mean(losstmp),avg_reward[1], Qtesttmp[1] ))
+                    print( 'MAE={} loss={} R={}, Qmean={}'.format(accur[-1], loss[-1],R[-1], Qtest[-1] ))
                     avg_reward[:] = 0
-
-
-
-
-
 
         ## plot results
         plt.figure(figsize=[10,10])
