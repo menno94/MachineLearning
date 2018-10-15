@@ -87,6 +87,7 @@ class Q_agent:
         scores = []
         accur = []
         loss = []
+        Qtest = []
         epoch_axis = []
         R = []
         avg_reward = np.zeros(2)
@@ -139,6 +140,8 @@ class Q_agent:
                 ## model from previous episode
                 self.previous_model.load_weights('temp.h5')
                 minibatch = random.sample(memory, batch_size)
+                errortmp = []
+                losstmp = []
                 for state, action, reward, next_state, done in minibatch:
                     if not done:
                         if self.delay_model ==False:
@@ -150,16 +153,24 @@ class Q_agent:
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
                     target_f[0][action] = target
                     stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
+                    #update averaged error
+                    errortmp.append(stats.history['mean_absolute_error'][0])
+                    losstmp.append(stats.history['loss'][0])
                 ## delay in network
                 self.model.save_weights('temp.h5')
                 if e % breaks == 0: #and e > 0 weg gehaald.
                     if self.epsilon > epsilon_min: #todo: verplaatsen uit if
                         self.epsilon *= epsilon_decay
-                        
+                    ## test values
+                    Qtesttmp = np.zeros(2)
+                    for i, item in enumerate(self.env.test_states):
+                        value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
+                        Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
+                    Qtest.append(Qtesttmp[1])
                     #scores.append(self.env.test_skill(self.model))
                     scores.append(0)
-                    accur.append(stats.history['mean_absolute_error'][0])
-                    loss.append(stats.history['loss'][0])
+                    accur.append(np.mean(errortmp))
+                    loss.append(np.mean(losstmp))
                     R.append(avg_reward[1])
                     eps_hist.append(round(self.epsilon,2))
                     epoch_axis.append(e)
@@ -167,40 +178,53 @@ class Q_agent:
                     time_left = break_time * (float(episodes)/float(e+1)) - break_time
                     eta = '%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60)
                     print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e/episodes*100,1), round(self.epsilon,2),scores[-1], eta ))
-                    print( 'MAE={} loss={}'.format(stats.history['mean_absolute_error'][0], stats.history['loss'][0]))
+                    print( 'MAE={} loss={} R={}, Qmean={}'.format(np.mean(errortmp), np.mean(losstmp),avg_reward[1], Qtesttmp[1] ))
+                    avg_reward[:] = 0
+
+
+
+
+
 
         ## plot results
         plt.figure(figsize=[10,10])
         plt.suptitle("Results", fontsize=16)
-        ax1 = plt.subplot(5,1,1)
+
+        ax1 = plt.subplot(6,1,1)
         ax1.plot(epoch_axis, scores,'.-')
         plt.title('Scores')
         plt.grid('on')
         ax1.set_xticklabels([])
 
-        ax2 = plt.subplot(5,1,2)
+        ax2 = plt.subplot(6,1,2)
         ax2.plot(epoch_axis,eps_hist,'.-')
         plt.title('Epsilon')
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(5,1,3)
+        ax2 = plt.subplot(6,1,3)
         ax2.plot(epoch_axis,R,'.-')
         plt.title('Total (averaged) reward')
         plt.grid('on')
         ax2.set_xticklabels([])
+
+        ax2 = plt.subplot(6,1,4)
+        ax2.plot(epoch_axis,Qtest,'.-')
+        plt.title('Averaged Q value')
+        plt.grid('on')
+        ax2.set_xticklabels([])
        
-        ax2 = plt.subplot(5,1,4)
+        ax2 = plt.subplot(6,1,5)
         ax2.plot(epoch_axis,accur,'.-')
         plt.title('Accuracy')
         plt.grid('on')
         ax2.set_xticklabels([])
               
-        plt.subplot(5,1,5)
+        plt.subplot(6,1,6)
         plt.plot(epoch_axis,loss,'.-')
         plt.title('loss')
         plt.grid('on')
         plt.xlabel('Episode')
         plt.savefig('results.png')
-        plt.close()
+        #plt.close()
         
