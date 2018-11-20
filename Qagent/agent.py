@@ -15,6 +15,7 @@ class Q_agent:
         self.training = training
         ## use frozen network with a delay for the target value
         self.delay_model = True
+        self.double_q = True
         
     def act(self, state):
         action = self.get_action(state)
@@ -29,7 +30,6 @@ class Q_agent:
             model.add(Dense(N[layer], activation='relu'))
         model.add(Dense(self.env.action_size, activation='linear'))
         model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
-        print("Finished building the model")
         return model
 
     def get_action(self, state):
@@ -70,7 +70,12 @@ class Q_agent:
         '''
         self.model = self.buildmodel(N, learning_rate)
         ## delay
-        self.previous_model = self.buildmodel(N, learning_rate)
+        if self.delay_model:
+            self.previous_model = self.buildmodel(N, learning_rate)
+        if self.double_q:
+            self.value_model = self.buildmodel(N, learning_rate)
+            
+        print("Finished building the model")
         
 
     def train(self, 
@@ -97,11 +102,16 @@ class Q_agent:
         memory = []
         start_time = time.time()
         ## save initial weights
-        self.model.save_weights('temp.h5')
+        self.model.save_weights('temp_previous.h5')
+        self.model.save_weights('temp_value_model.h5')
+        model_update_freq = 10
         for e in range(episodes):
             state = self.env.get_initial_state()
             total_reward = 0
             turn = 0
+# =============================================================================
+#       Two player game
+# =============================================================================
             if self.env.players == 2:
                 old_state = 0; old_action = 0
                 action, next_state, done, reward = self.act(state)
@@ -119,10 +129,13 @@ class Q_agent:
                     if done:
                         memory.append((state,action,reward,next_state,done))
                         if reward == self.env.reward_win:
-                            reward = -reward
+#                            reward = -reward
+                            reward = self.env.reward_notdone
                         memory.append((old_state,old_action,reward,next_state,done))
                         break
-            
+# =============================================================================
+#           One player game
+# =============================================================================
             else:    # If 1 player game
                 while True:
                     turn += 1
@@ -136,20 +149,30 @@ class Q_agent:
                         break
             ## mean stats
             avg_reward[1] = avg_reward[0] + (total_reward-avg_reward[0])/(e+1)
-
-            ## train netwerk
+            if self.double_q:
+                if e % model_update_freq == 0:
+                    self.value_model.load_weights('temp_value_model.h5')
+                    self.model.save_weights('temp_value_model.h5')
+                ## train netwerk
             if len(memory) >= batch_size:
                 ## model from previous episode
-                self.previous_model.load_weights('temp.h5')
+                self.previous_model.load_weights('temp_previous.h5')
                 minibatch = random.sample(memory, batch_size)
                 errortmp    = []
                 losstmp     = []
                 for state, action, reward, next_state, done in minibatch:
                     if not done:
-                        if self.delay_model ==False:
-                            target = reward + gamma * np.amax(self.model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                        if self.double_q:
+                            if self.delay_model:
+                                target_move = np.argmax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])                        
+                            else:
+                                target_move = np.argmax(self.model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                            target = reward + gamma * self.value_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0][target_move]
                         else:
-                            target = reward + gamma * np.amax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                            if self.delay_model:
+                                target = reward + gamma * np.amax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                            else:
+                                target = reward + gamma * np.amax(self.model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
                     else:
                         target = reward
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
@@ -159,20 +182,23 @@ class Q_agent:
                 errortmp.append(stats.history['mean_absolute_error'][0])
                 losstmp.append(stats.history['loss'][0])
                 ## save model weights
-                self.model.save_weights('temp.h5')
+                self.model.save_weights('temp_previous.h5')
                 ## adjust opsilon
-                if self.epsilon > epsilon_min:
-                    self.epsilon *= epsilon_decay
+                
                 if e % breaks == 0:
                     ## test values
-                    Qtesttmp = np.zeros(2)
-                    for i, item in enumerate(self.env.test_states):
-                        value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
-                        Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
-                    Qtest.append(Qtesttmp[1])
+                    if self.epsilon > epsilon_min:
+                        self.epsilon *= epsilon_decay
+                    
+#                    Qtesttmp = np.zeros(2)
+#                    for i, item in enumerate(self.env.test_states):
+#                        value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
+#                        Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
+                    Qtest.append(0)
+                    
                     ## test scores
-                    #scores.append(self.env.test_skill(self.model))
-                    scores.append(0)
+                    scores.append(self.env.test_skill(self.model))
+#                    scores.append(0)
                     ## stats
                     accur.append(np.mean(errortmp))
                     loss.append(np.mean(losstmp))
@@ -185,8 +211,11 @@ class Q_agent:
                     time_left = break_time * (float(episodes)/float(e+1)) - break_time
                     eta = '%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60)
                     print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e/episodes*100,1), round(self.epsilon,2),scores[-1], eta ))
-                    print( 'MAE={} loss={} R={}, Qmean={}'.format(accur[-1], loss[-1],R[-1], Qtest[-1] ))
+#                    print( 'MAE={} loss={} R={}, Qmean={}'.format(accur[-1], loss[-1],R[-1], Qtest[-1] ))
+                    print( 'MAE={} loss={} R={}'.format(accur[-1], loss[-1],R[-1]))
                     avg_reward[:] = 0
+
+### Alle regels hieronder Cntrl+1
 
         ## plot results
         plt.figure(figsize=[10,10])
