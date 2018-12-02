@@ -2,6 +2,7 @@ from keras.models import Sequential
 from keras.layers import Activation, InputLayer, Dense
 from keras.optimizers import Nadam
 from keras.models import load_model
+from keras import callbacks
 import random
 import numpy as np
 import time
@@ -11,19 +12,32 @@ from copy import deepcopy
 
 class Q_agent:
     def __init__(self, env, training = True):
+        ## environment
         self.env = env
+        ## switch between prediction and training
         self.training = training
         ## use frozen network with a delay for the target value
         self.delay_model = True
+        ## double q
         self.double_q = True
         
     def act(self, state):
+        '''
+        Returns the action, next state, final state and reward based on current state
+        '''
         action = self.get_action(state)
         next_state = self.env.get_next_state(state,action)
         reward, done = self.env.get_reward(next_state)
         return action, next_state, done, reward
     
     def buildmodel(self, N, learning_rate):
+        '''
+        Build the model with len(N) layers and N[i] neurons per layer.
+        '''
+        ## calback for tensorboard
+        self.tbCallBack = callbacks.TensorBoard(log_dir='./Graph', histogram_freq=100, write_graph=True, write_images=False, write_grads=True)
+        
+        ## create model
         model = Sequential()
         model.add(InputLayer(input_shape = (np.prod(self.env.state_shape),) )) # Vreeeeeemd
         for layer in range(len(N)):
@@ -33,9 +47,13 @@ class Q_agent:
         return model
 
     def get_action(self, state):
-        ## Exploration vs. Exploitation
+        '''
+        Get action for current state
+        '''
+        ## no randonness during prediction
         if self.training == False:
             self.epsilon = 0
+        ## Exploration vs. Exploitation
         if np.random.rand() <= self.epsilon:
             act_values = np.random.rand(1, self.env.action_size)
         else:
@@ -69,7 +87,7 @@ class Q_agent:
         N = list with the neurons in the hidden layers
         '''
         self.model = self.buildmodel(N, learning_rate)
-        ## delay
+        ## delay model
         if self.delay_model:
             self.previous_model = self.buildmodel(N, learning_rate)
         if self.double_q:
@@ -87,6 +105,9 @@ class Q_agent:
                       gamma             =   0.95, 
                       memory_length     =   1000,
                       breaks            =   10):
+        '''
+        Train the Qagent
+        '''
         ## set epsilion
         self.epsilon = epsilon
         ## lists for sats
@@ -95,15 +116,16 @@ class Q_agent:
         loss        = []
         Qtest       = []
         epoch_axis  = []
-        eps_hist = []
-        R = []
-        avg_reward = np.zeros(2)
+        eps_hist    = []
+        R           = []
+        avg_reward  = np.zeros(2)
         ## envionment settings
         memory = []
         start_time = time.time()
         ## save initial weights
         self.model.save_weights('temp_previous.h5')
         self.model.save_weights('temp_value_model.h5')
+        current_epoch = 0
         model_update_freq = 10
         for e in range(episodes):
             state = self.env.get_initial_state()
@@ -153,7 +175,9 @@ class Q_agent:
                 if e % model_update_freq == 0:
                     self.value_model.load_weights('temp_value_model.h5')
                     self.model.save_weights('temp_value_model.h5')
-                ## train netwerk
+# =============================================================================
+#           Train netwerk
+# =============================================================================
             if len(memory) >= batch_size:
                 ## model from previous episode
                 self.previous_model.load_weights('temp_previous.h5')
@@ -163,11 +187,9 @@ class Q_agent:
                 for state, action, reward, next_state, done in minibatch:
                     if not done:
                         if self.double_q:
-                            if self.delay_model:
-                                target_move = np.argmax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])                        
-                            else:
-                                target_move = np.argmax(self.model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
-                            target = reward + gamma * self.value_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0][target_move]
+                            target_move = np.argmax(
+                                self.model.predict(next_state.reshape(1, np.prod(self.env.state_shape)))[0])
+                            target = reward + gamma * self.value_model.predict(next_state.reshape(1, np.prod(self.env.state_shape)))[0][target_move]
                         else:
                             if self.delay_model:
                                 target = reward + gamma * np.amax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
@@ -177,8 +199,14 @@ class Q_agent:
                         target = reward
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
                     target_f[0][action] = target
-                    stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=1, verbose=0)
+
+                    stats = self.model.fit(state.reshape(1, np.prod(self.env.state_shape)), target_f,
+                                           epochs=current_epoch + 1, initial_epoch=current_epoch, verbose=0)
+                    #callback# stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=current_epoch+1, initial_epoch=current_epoch, verbose=0,callbacks=[self.tbCallBack], validation_split = 0.2)
+                    current_epoch = current_epoch + 1
+
                 ## update averaged error based
+                #print(stats['acc'])
                 errortmp.append(stats.history['mean_absolute_error'][0])
                 losstmp.append(stats.history['loss'][0])
                 ## save model weights
