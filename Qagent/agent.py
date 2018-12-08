@@ -92,9 +92,62 @@ class Q_agent:
             self.previous_model = self.buildmodel(N, learning_rate)
         if self.double_q:
             self.value_model = self.buildmodel(N, learning_rate)
-            
         print("Finished building the model")
-        
+
+    def evaluate(self, evaluation, total_R, e, error, loss, loss_std):
+        ## score
+        Qtesttmp = np.zeros(2)
+        for i, item in enumerate(self.env.test_states):
+            value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
+            Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
+        tmp = evaluation['Q']
+        tmp.append(Qtesttmp[1])
+        evaluation['Q'] = tmp
+
+        ## test scores
+        tmp = evaluation['score']
+        score = self.env.test_skill(self.model)
+        tmp.append(score)
+        evaluation['score'] = tmp
+
+        ## epsilon
+        tmp = evaluation['epsilon']
+        tmp.append(self.epsilon)
+        evaluation['epsilon'] = tmp
+
+        ## average reward
+        tmp = evaluation['total_R']
+        tmp.append(total_R)
+        evaluation['total_R'] = tmp
+
+        ## loss
+        tmp = evaluation['loss']
+        tmp.append(loss)
+        evaluation['loss'] = tmp
+
+        ## loss
+        tmp = evaluation['loss_std']
+        tmp.append(loss_std)
+        evaluation['loss_std'] = tmp
+        ## acc
+        tmp = evaluation['acc']
+        tmp.append(error)
+        evaluation['acc'] = tmp
+
+        ## acc
+        tmp = evaluation['episode']
+        tmp.append(e)
+        evaluation['episode'] = tmp
+
+        ## print results
+        break_time = time.time() - self.start_time
+        time_left = break_time * (float(self.episodes) / float(e + 1)) - break_time
+        eta = '%02d' % (int(time_left) / 3600) + ":" + '%02d' % ((int(time_left) % 3600) / 60) + ":" + '%02d' % int(
+            time_left % 60)
+        print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e / self.episodes * 100, 1), round(self.epsilon, 2),score, eta))
+        print('MAE={} loss={} R={}'.format(error, loss, total_R))
+
+        return evaluation
 
     def train(self, 
                       episodes          =   100,
@@ -104,29 +157,25 @@ class Q_agent:
                       batch_size        =   50, 
                       gamma             =   0.95, 
                       memory_length     =   1000,
-                      breaks            =   10):
+                      breaks            =   10,
+                      model_update_freq=10):
         '''
         Train the Qagent
         '''
         ## set epsilion
         self.epsilon = epsilon
-        ## lists for sats
-        scores      = []
-        accur       = []
-        loss        = []
-        Qtest       = []
-        epoch_axis  = []
-        eps_hist    = []
-        R           = []
-        avg_reward  = np.zeros(2)
+        self.episodes = episodes
+        ## set stats dict
+        evaluation = {'score':[],'epsilon':[],'total_R':[],'avg_q':[],'acc':[],'loss':[],'episode':[],'Q':[], 'loss_std':[]}
+
         ## envionment settings
         memory = []
-        start_time = time.time()
-        ## save initial weights
+        self.start_time = time.time()
+        ## save initial weights and set epoch number
         self.model.save_weights('temp_previous.h5')
         self.model.save_weights('temp_value_model.h5')
         current_epoch = 0
-        model_update_freq = 10
+
         for e in range(episodes):
             state = self.env.get_initial_state()
             total_reward = 0
@@ -169,12 +218,11 @@ class Q_agent:
                     state = next_state.copy()
                     if done:
                         break
-            ## mean stats
-            avg_reward[1] = avg_reward[0] + (total_reward-avg_reward[0])/(e+1)
-            if self.double_q:
-                if e % model_update_freq == 0:
-                    self.value_model.load_weights('temp_value_model.h5')
-                    self.model.save_weights('temp_value_model.h5')
+
+            ## double q learning
+            if self.double_q and e % model_update_freq == 0:
+                self.value_model.load_weights('temp_value_model.h5')
+                self.model.save_weights('temp_value_model.h5')
 # =============================================================================
 #           Train netwerk
 # =============================================================================
@@ -203,86 +251,78 @@ class Q_agent:
                     stats = self.model.fit(state.reshape(1, np.prod(self.env.state_shape)), target_f,
                                            epochs=current_epoch + 1, initial_epoch=current_epoch, verbose=0)
                     #callback# stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=current_epoch+1, initial_epoch=current_epoch, verbose=0,callbacks=[self.tbCallBack], validation_split = 0.2)
-                    current_epoch = current_epoch + 1
+                    ## update averaged error based
+                    errortmp.append(stats.history['mean_absolute_error'][0])
+                    losstmp.append(stats.history['loss'][0])
 
-                ## update averaged error based
-                #print(stats['acc'])
-                errortmp.append(stats.history['mean_absolute_error'][0])
-                losstmp.append(stats.history['loss'][0])
+                ## update epoch after full memory
+                current_epoch = current_epoch + 1
                 ## save model weights
                 self.model.save_weights('temp_previous.h5')
                 ## adjust opsilon
-                
+                if self.epsilon > epsilon_min:
+                    self.epsilon *= epsilon_decay
                 if e % breaks == 0:
-                    ## test values
-                    if self.epsilon > epsilon_min:
-                        self.epsilon *= epsilon_decay
-                    
-#                    Qtesttmp = np.zeros(2)
-#                    for i, item in enumerate(self.env.test_states):
-#                        value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
-#                        Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
-                    Qtest.append(0)
-                    
-                    ## test scores
-                    scores.append(self.env.test_skill(self.model))
-#                    scores.append(0)
                     ## stats
-                    accur.append(np.mean(errortmp))
-                    loss.append(np.mean(losstmp))
-                    R.append(avg_reward[1])
-                    avg_reward[:] = 0
-                    eps_hist.append(round(self.epsilon,2))
-                    epoch_axis.append(e)
-                    ## print results
-                    break_time = time.time() - start_time
-                    time_left = break_time * (float(episodes)/float(e+1)) - break_time
-                    eta = '%02d'%(int(time_left)/3600)+":"+'%02d'%((int(time_left)%3600)/60)+":"+'%02d'%int(time_left%60)
-                    print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e/episodes*100,1), round(self.epsilon,2),scores[-1], eta ))
-#                    print( 'MAE={} loss={} R={}, Qmean={}'.format(accur[-1], loss[-1],R[-1], Qtest[-1] ))
-                    print( 'MAE={} loss={} R={}'.format(accur[-1], loss[-1],R[-1]))
-                    avg_reward[:] = 0
+                    evaluation = self.evaluate(evaluation,total_reward,e,np.mean(errortmp),np.mean(losstmp),np.std(losstmp))
+
+
+
 
 ### Alle regels hieronder Cntrl+1
-
+        N = max(1,int(len(evaluation['episode'])/5))
         ## plot results
         plt.figure(figsize=[10,10])
         plt.suptitle("Results", fontsize=16)
 
         ax1 = plt.subplot(6,1,1)
-        ax1.plot(epoch_axis, scores,'.-')
+        ax1.plot(evaluation['episode'], evaluation['score'],'.-')
+        ax1.plot(evaluation['episode'], np.convolve(evaluation['score'], np.ones((N,)) / N, mode='same'))
+
         plt.title('Scores')
         plt.grid('on')
         ax1.set_xticklabels([])
 
-        ax2 = plt.subplot(6,1,2)
-        ax2.plot(epoch_axis,eps_hist,'.-')
+        ax2 = plt.subplot(7,1,2)
+        ax2.plot(evaluation['episode'], evaluation['epsilon'],'.-')
         plt.title('Epsilon')
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(6,1,3)
-        ax2.plot(epoch_axis,R,'.-')
-        plt.title('Total (averaged) reward')
+        ax2 = plt.subplot(7,1,3)
+        ax2.plot(evaluation['episode'],evaluation['total_R'],'.-')
+        ax2.plot(evaluation['episode'], np.convolve(evaluation['total_R'], np.ones((N,))/N, mode='same'))
+        plt.title('Total reward')
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(6,1,4)
-        ax2.plot(epoch_axis,Qtest,'.-')
+        ax2 = plt.subplot(7,1,4)
+        ax2.plot(evaluation['episode'],evaluation['Q'],'.-')
+        ax2.plot(evaluation['episode'], np.convolve(evaluation['Q'], np.ones((N,)) / N, mode='same'))
         plt.title('Averaged Q value')
         plt.grid('on')
         ax2.set_xticklabels([])
        
-        ax2 = plt.subplot(6,1,5)
-        ax2.plot(epoch_axis,accur,'.-')
+        ax2 = plt.subplot(7,1,5)
+        ax2.plot(evaluation['episode'],evaluation['acc'],'.-')
+        ax2.plot(evaluation['episode'], np.convolve(evaluation['acc'], np.ones((N,)) / N, mode='same'))
         plt.title('Accuracy')
         plt.grid('on')
         ax2.set_xticklabels([])
               
-        ax = plt.subplot(6,1,6)
-        ax.plot(epoch_axis,loss,'.-')
+        ax = plt.subplot(7,1,6)
+        ax.plot(evaluation['episode'],evaluation['loss'],'.-')
+        ax.plot(evaluation['episode'], np.convolve(evaluation['loss'], np.ones((N,)) / N, mode='same'))
         ax.set_yscale('log')
         plt.title('loss')
+        plt.grid('on')
+        plt.xlabel('Episode')
+
+        ax = plt.subplot(7,1,7)
+        ax.plot(evaluation['episode'],evaluation['loss_std'],'.-')
+        ax2.plot(evaluation['episode'], np.convolve(evaluation['loss_std'], np.ones((N,)) / N, mode='same'))
+        ax.set_yscale('log')
+        plt.title('std(loss)')
         plt.grid('on')
         plt.xlabel('Episode')
         plt.savefig('results.png')
