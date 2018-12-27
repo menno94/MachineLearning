@@ -94,50 +94,58 @@ class Q_agent:
             self.value_model = self.buildmodel(N, learning_rate)
         print("Finished building the model")
 
-    def evaluate(self, evaluation, total_R, e, error, loss, loss_std):
+    def evaluate(self, total_R, e, error, loss, loss_std):
+
+
         ## score
         Qtesttmp = np.zeros(2)
         for i, item in enumerate(self.env.test_states):
             value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
             Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
-        tmp = evaluation['Q']
-        tmp.append(Qtesttmp[1])
-        evaluation['Q'] = tmp
+        #tmp = evaluation['Q']
+        #tmp.append(Qtesttmp[1])
+        #evaluation['Q'] = tmp
 
         ## test scores
-        tmp = evaluation['score']
+        #tmp = evaluation['score']
         score = self.env.test_skill(self.model)
-        tmp.append(score)
-        evaluation['score'] = tmp
+        #tmp.append(score)
+        #evaluation['score'] = tmp
 
         ## epsilon
-        tmp = evaluation['epsilon']
-        tmp.append(self.epsilon)
-        evaluation['epsilon'] = tmp
+        #tmp = evaluation['epsilon']
+        #tmp.append(self.epsilon)
+        #evaluation['epsilon'] = tmp
 
         ## average reward
-        tmp = evaluation['total_R']
-        tmp.append(total_R)
-        evaluation['total_R'] = tmp
+        #tmp = evaluation['total_R']
+        #tmp.append(total_R)
+        #evaluation['total_R'] = tmp
 
         ## loss
-        tmp = evaluation['loss']
-        tmp.append(loss)
-        evaluation['loss'] = tmp
+        #tmp = evaluation['loss']
+        #tmp.append(loss)
+        #evaluation['loss'] = tmp
 
         ## loss
-        tmp = evaluation['loss_std']
-        tmp.append(loss_std)
-        evaluation['loss_std'] = tmp
+        #tmp = evaluation['loss_std']
+        #tmp.append(loss_std)
+        #evaluation['loss_std'] = tmp
         ## acc
-        tmp = evaluation['acc']
-        tmp.append(error)
-        evaluation['acc'] = tmp
+        #tmp = evaluation['acc']
+        #tmp.append(error)
+        #evaluation['acc'] = tmp
 
         ## acc
-        tmp = evaluation['episode']
-        tmp.append(e)
-        evaluation['episode'] = tmp
+        #tmp = evaluation['episode']
+        #tmp.append(e)
+        #evaluation['episode'] = tmp
+
+        ## open file
+
+        f = open('stats.txt','a')
+        f.write('e={}\teps={}\tQ={}\tscore={}\ttotal_R={}\tloss={}\tacc={}\n'.format(e, self.epsilon, Qtesttmp[1], score, total_R, loss, error))
+        f.close()
 
         ## print results
         break_time = time.time() - self.start_time
@@ -147,7 +155,7 @@ class Q_agent:
         print('#### {} % | eps={} | score={} | ETA={} ####'.format(round(e / self.episodes * 100, 1), round(self.epsilon, 2),score, eta))
         print('MAE={} loss={} R={}'.format(error, loss, total_R))
 
-        return evaluation
+        #return evaluation
 
     def train(self, 
                       episodes          =   100,
@@ -166,8 +174,9 @@ class Q_agent:
         self.epsilon = epsilon
         self.episodes = episodes
         ## set stats dict
-        evaluation = {'score':[],'epsilon':[],'total_R':[],'avg_q':[],'acc':[],'loss':[],'episode':[],'Q':[], 'loss_std':[]}
-
+        ### oud: evaluation = {'score':[],'epsilon':[],'total_R':[],'avg_q':[],'acc':[],'loss':[],'episode':[],'Q':[], 'loss_std':[]}
+        f = open('stats.txt', 'w')
+        f.close()
         ## envionment settings
         memory = []
         self.start_time = time.time()
@@ -264,64 +273,94 @@ class Q_agent:
                     self.epsilon *= epsilon_decay
                 if e % breaks == 0:
                     ## stats
-                    evaluation = self.evaluate(evaluation,total_reward,e,np.mean(errortmp),np.mean(losstmp),np.std(losstmp))
+                    self.evaluate(total_reward,e,np.mean(errortmp),np.mean(losstmp),np.std(losstmp))
 
 
 
 
 ### Alle regels hieronder Cntrl+1
-        N = max(1,int(len(evaluation['episode'])/5))
+        with open('stats.txt','r') as f:
+            lines = f.readlines()
+
+        episode = []
+        epsilon = []
+        Qtest = []
+        score = []
+        totalR = []
+        loss = []
+        acc = []
+        for line in lines:
+            for item in line.split('\t'):
+                var, number = item.split('=')
+                number = float(number.split('\n')[0])
+                if var =='e':
+                    episode.append(number)
+                if var =='eps':
+                    epsilon.append(number)
+                if var =='Q':
+                    Qtest.append(number)
+                if var =='score':
+                    score.append(number)
+                if var=='total_R':
+                    totalR.append(number)
+                if var =='loss':
+                    loss.append(number)
+                if var =='acc':
+                    acc.append(number)
+
+
+
+        N = max(1,int(len(episode)/5))
         ## plot results
         plt.figure(figsize=[10,10])
         plt.suptitle("Results", fontsize=16)
 
         ax1 = plt.subplot(6,1,1)
-        ax1.plot(evaluation['episode'], evaluation['score'],'.-')
-        ax1.plot(evaluation['episode'], np.convolve(evaluation['score'], np.ones((N,)) / N, mode='same'))
+        ax1.plot(episode, score,'.-')
+        ax1.plot(episode, np.convolve(score, np.ones((N,)) / N, mode='same'))
 
         plt.title('Scores')
         plt.grid('on')
         ax1.set_xticklabels([])
 
         ax2 = plt.subplot(7,1,2)
-        ax2.plot(evaluation['episode'], evaluation['epsilon'],'.-')
+        ax2.plot(episode, epsilon,'.-')
         plt.title('Epsilon')
         plt.grid('on')
         ax2.set_xticklabels([])
 
         ax2 = plt.subplot(7,1,3)
-        ax2.plot(evaluation['episode'],evaluation['total_R'],'.-')
-        ax2.plot(evaluation['episode'], np.convolve(evaluation['total_R'], np.ones((N,))/N, mode='same'))
+        ax2.plot(episode,totalR,'.-')
+        ax2.plot(episode, np.convolve(totalR, np.ones((N,))/N, mode='same'))
         plt.title('Total reward')
         plt.grid('on')
         ax2.set_xticklabels([])
 
         ax2 = plt.subplot(7,1,4)
-        ax2.plot(evaluation['episode'],evaluation['Q'],'.-')
-        ax2.plot(evaluation['episode'], np.convolve(evaluation['Q'], np.ones((N,)) / N, mode='same'))
+        ax2.plot(episode,Qtest,'.-')
+        ax2.plot(episode, np.convolve(Qtest, np.ones((N,)) / N, mode='same'))
         plt.title('Averaged Q value')
         plt.grid('on')
         ax2.set_xticklabels([])
        
         ax2 = plt.subplot(7,1,5)
-        ax2.plot(evaluation['episode'],evaluation['acc'],'.-')
-        ax2.plot(evaluation['episode'], np.convolve(evaluation['acc'], np.ones((N,)) / N, mode='same'))
+        ax2.plot(episode,acc,'.-')
+        ax2.plot(episode, np.convolve(acc, np.ones((N,)) / N, mode='same'))
         plt.title('Accuracy')
         plt.grid('on')
         ax2.set_xticklabels([])
               
         ax = plt.subplot(7,1,6)
-        ax.plot(evaluation['episode'],evaluation['loss'],'.-')
-        ax.plot(evaluation['episode'], np.convolve(evaluation['loss'], np.ones((N,)) / N, mode='same'))
+        ax.plot(episode,loss,'.-')
+        ax.plot(episode, np.convolve(loss, np.ones((N,)) / N, mode='same'))
         ax.set_yscale('log')
         plt.title('loss')
         plt.grid('on')
         plt.xlabel('Episode')
 
         ax = plt.subplot(7,1,7)
-        ax.plot(evaluation['episode'],evaluation['loss_std'],'.-')
-        ax2.plot(evaluation['episode'], np.convolve(evaluation['loss_std'], np.ones((N,)) / N, mode='same'))
-        ax.set_yscale('log')
+        #ax.plot(episode,evaluation['loss_std'],'.-')
+        #ax.plot(eepisode, np.convolve(evaluation['loss_std'], np.ones((N,)) / N, mode='same'))
         plt.title('std(loss)')
         plt.grid('on')
         plt.xlabel('Episode')
