@@ -20,6 +20,8 @@ class Q_agent:
         self.delay_model = True
         ## double q
         self.double_q = True
+        ##
+        self.analyse = False
         
     def act(self, state):
         '''
@@ -202,6 +204,14 @@ class Q_agent:
                     turn += 1
                     old_action = deepcopy(action); old_state = deepcopy(state)
                     state = self.env.switch_state(next_state)
+                    ##save to analse
+                    if self.analyse:
+                        if e>0:
+                            temp = np.load('state.npy')
+                        else:
+                            temp = state * 0
+                        temp = temp + state
+                        np.save('state',temp)
                     action, next_state, done, reward = self.act(state)
                     total_reward += reward
                     if len(memory)>memory_length:
