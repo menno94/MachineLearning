@@ -29,7 +29,8 @@ if __name__ == '__main__':
             print('----------------------------')
             
             if turn_player:              
-                action = input("Action selection: [1-9] numpad order")
+                
+                action = input("Action selection: [1-9] numpad order (First move 1/2/5)")
                 if action == 'q':
                     stop = 'q'
                     break
