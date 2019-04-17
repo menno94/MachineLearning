@@ -205,13 +205,16 @@ class Q_agent:
                     old_action = deepcopy(action); old_state = deepcopy(state)
                     state = self.env.switch_state(next_state)
                     ##save to analse
-                    if self.analyse:
+                    if self.analyse and e>0:
                         if e>0:
                             temp = np.load('state.npy')
-                        else:
-                            temp = state * 0
-                        temp = temp + state
+                            temp = temp + state
+                            np.save('state',temp)
+                    else:
+                        temp = state * 0
                         np.save('state',temp)
+                        
+                        
                     action, next_state, done, reward = self.act(state)
                     total_reward += reward
                     if len(memory)>memory_length:
