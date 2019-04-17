@@ -114,35 +114,6 @@ class Q_agent:
         #tmp.append(score)
         #evaluation['score'] = tmp
 
-        ## epsilon
-        #tmp = evaluation['epsilon']
-        #tmp.append(self.epsilon)
-        #evaluation['epsilon'] = tmp
-
-        ## average reward
-        #tmp = evaluation['total_R']
-        #tmp.append(total_R)
-        #evaluation['total_R'] = tmp
-
-        ## loss
-        #tmp = evaluation['loss']
-        #tmp.append(loss)
-        #evaluation['loss'] = tmp
-
-        ## loss
-        #tmp = evaluation['loss_std']
-        #tmp.append(loss_std)
-        #evaluation['loss_std'] = tmp
-        ## acc
-        #tmp = evaluation['acc']
-        #tmp.append(error)
-        #evaluation['acc'] = tmp
-
-        ## acc
-        #tmp = evaluation['episode']
-        #tmp.append(e)
-        #evaluation['episode'] = tmp
-
         ## open file
 
         f = open('stats.txt','a')
@@ -158,6 +129,9 @@ class Q_agent:
         print('MAE={} loss={} R={}'.format(error, loss, total_R))
 
         #return evaluation
+        total_R = 0
+        return total_R
+        
 
     def train(self, 
                       episodes          =   100,
@@ -176,9 +150,9 @@ class Q_agent:
         self.epsilon = epsilon
         self.episodes = episodes
         ## set stats dict
-        ### oud: evaluation = {'score':[],'epsilon':[],'total_R':[],'avg_q':[],'acc':[],'loss':[],'episode':[],'Q':[], 'loss_std':[]}
         f = open('stats.txt', 'w')
         f.close()
+        total_reward = 0
         ## envionment settings
         memory = []
         self.start_time = time.time()
@@ -189,7 +163,7 @@ class Q_agent:
 
         for e in range(episodes):
             state = self.env.get_initial_state()
-            total_reward = 0
+            
             turn = 0
 # =============================================================================
 #       Two player game
@@ -238,6 +212,15 @@ class Q_agent:
                     if len(memory)>memory_length:
                         del memory[0]
                     state = next_state.copy()
+                    ##save to analse
+                    if self.analyse and e>0:
+                        if e>0:
+                            temp = np.load('state.npy')
+                            temp = temp + state
+                            np.save('state',temp)
+                    else:
+                        temp = state * 0
+                        np.save('state',temp)
                     if done:
                         break
 
@@ -284,9 +267,9 @@ class Q_agent:
                 ## adjust opsilon
                 if self.epsilon > epsilon_min:
                     self.epsilon *= epsilon_decay
-                if e % breaks == 0:
+                if e % breaks == 0 and e>0:
                     ## stats
-                    self.evaluate(total_reward,e,np.mean(errortmp),np.mean(losstmp),np.std(losstmp))
+                    total_reward = self.evaluate(total_reward,e,np.mean(errortmp),np.mean(losstmp),np.std(losstmp))
 
 
 
@@ -332,50 +315,52 @@ class Q_agent:
         ax1.plot(episode, score,'.-')
         ax1.plot(episode, np.convolve(score, np.ones((N,)) / N, mode='same'))
 
-        plt.title('Scores')
+        plt.ylabel('Scores')
+        plt.title('Scores based on test skill function')
         plt.grid('on')
         ax1.set_xticklabels([])
 
-        ax2 = plt.subplot(7,1,2)
+        ax2 = plt.subplot(6,1,2)
         ax2.plot(episode, epsilon,'.-')
-        plt.title('Epsilon')
+        plt.ylabel('Epsilon')
+        plt.title('Epsilon per epoch')
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(7,1,3)
+        ax2 = plt.subplot(6,1,3)
         ax2.plot(episode,totalR,'.-')
         ax2.plot(episode, np.convolve(totalR, np.ones((N,))/N, mode='same'))
-        plt.title('Total reward')
+        plt.ylabel('Total reward') ## total reward 
+        plt.title('Total reward within the breaks interval')
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(7,1,4)
+        ax2 = plt.subplot(6,1,4)
         ax2.plot(episode,Qtest,'.-')
         ax2.plot(episode, np.convolve(Qtest, np.ones((N,)) / N, mode='same'))
-        plt.title('Averaged Q value')
+        plt.title('Averaged Q value for given test states')
+        plt.ylabel('averaged Q')
         plt.grid('on')
         ax2.set_xticklabels([])
        
-        ax2 = plt.subplot(7,1,5)
+        ax2 = plt.subplot(6,1,5)
         ax2.plot(episode,acc,'.-')
         ax2.plot(episode, np.convolve(acc, np.ones((N,)) / N, mode='same'))
-        plt.title('Accuracy')
+        plt.ylabel('Accuracy')
+        plt.title('Mean accuracy over all batches')
         plt.grid('on')
         ax2.set_xticklabels([])
               
-        ax = plt.subplot(7,1,6)
+        ax = plt.subplot(6,1,6)
         ax.plot(episode,loss,'.-')
         ax.plot(episode, np.convolve(loss, np.ones((N,)) / N, mode='same'))
         ax.set_yscale('log')
-        plt.title('loss')
+        plt.ylabel('loss')
+        plt.title('Mean loss over all batches')
         plt.grid('on')
         plt.xlabel('Episode')
+        
 
-        ax = plt.subplot(7,1,7)
-        #ax.plot(episode,evaluation['loss_std'],'.-')
-        #ax.plot(eepisode, np.convolve(evaluation['loss_std'], np.ones((N,)) / N, mode='same'))
-        plt.title('std(loss)')
-        plt.grid('on')
         plt.xlabel('Episode')
         plt.savefig('results.png')
         #plt.close()
