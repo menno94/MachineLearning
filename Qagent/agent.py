@@ -180,13 +180,15 @@ class Q_agent:
                     state = self.env.switch_state(next_state)
                     ##save to analse
                     if self.analyse and e>0:
+                        ## save cumulative state
                         if e>0:
                             temp = np.load('state.npy')
                             temp = temp + state
                             np.save('state',temp)
-                    else:
-                        temp = state * 0
-                        np.save('state',temp)
+                        ## save first state as zero
+                        else:
+                            temp = state * 0
+                            np.save('state',temp)
                         
                         
                     action, next_state, done, reward = self.act(state)
@@ -214,13 +216,15 @@ class Q_agent:
                     state = next_state.copy()
                     ##save to analse
                     if self.analyse and e>0:
+                        ## save cumulative state
                         if e>0:
                             temp = np.load('state.npy')
                             temp = temp + state
                             np.save('state',temp)
-                    else:
-                        temp = state * 0
-                        np.save('state',temp)
+                        ## save first state as zero
+                        else:
+                            temp = state * 0
+                            np.save('state',temp)
                     if done:
                         break
 
