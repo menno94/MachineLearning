@@ -179,7 +179,7 @@ class Q_agent:
                     old_action = deepcopy(action); old_state = deepcopy(state)
                     state = self.env.switch_state(next_state)
                     ##save to analse
-                    if self.analyse and e>0:
+                    if self.analyse:
                         ## save cumulative state
                         if e>0:
                             temp = np.load('state.npy')
@@ -215,7 +215,7 @@ class Q_agent:
                         del memory[0]
                     state = next_state.copy()
                     ##save to analse
-                    if self.analyse and e>0:
+                    if self.analyse:
                         ## save cumulative state
                         if e>0:
                             temp = np.load('state.npy')
