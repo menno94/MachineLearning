@@ -19,6 +19,7 @@ class env_TTT:
         self.reward_win = 10
         self.reward_draw = 2
         self.reward_notdone = 0
+        self.reward_lose = -10
         self.create_test_states()
 
     def create_test_states(self):
@@ -65,12 +66,12 @@ class env_TTT:
         return False
     
     def get_constrain(self,state):
-        
-        if np.sum(state) == 0:
+        tmp_state = state.copy()
+        if np.sum(tmp_state) == 0:
             a = [2,3,5,6,7,8]
-            state[0,a] = 1
+            tmp_state[0,a] = 1
             self.rotation = randint(0,3)
-        temp = np.sum(state,axis=0)
+        temp = np.sum(tmp_state,axis=0)
         ind = np.where(temp == 1)
         return ind
 
