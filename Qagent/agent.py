@@ -8,7 +8,7 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 from copy import deepcopy
-
+import os
 
 class Q_agent:
     def __init__(self, env, training = True):
@@ -22,6 +22,7 @@ class Q_agent:
         self.double_q = True
         ##
         self.analyse = False
+        self.analyse_full = False
         
     def act(self, state):
         '''
@@ -81,6 +82,7 @@ class Q_agent:
         Loads the model from a given path
         '''
         model = load_model(fname)
+        #model.load_weights('temp_previous.h5')
         self.model = model
     
     def create_model(self,N, learning_rate):
@@ -169,16 +171,35 @@ class Q_agent:
 #       Two player game
 # =============================================================================
             if self.env.players == 2:
-                old_state = 0; old_action = 0
+                old_state = 0; old_action = 0; old_reward = 0
+                ## first move
                 action, next_state, done, reward = self.act(state)
                 
                 while True:
+                    ## update memory
                     if turn != 0:
-                        memory.append((old_state,old_action,reward,next_state,done))
+                        old_next_state = self.env.switch_state(next_state)
+                        memory.append((old_state,old_action,old_reward,old_next_state,done))
                     turn += 1
                     old_action = deepcopy(action); old_state = deepcopy(state)
+                    old_reward = reward
                     state = self.env.switch_state(next_state)
-                    ##save to analse
+       
+                    action, next_state, done, reward = self.act(state)
+                    total_reward += reward
+                    ## keep memory length
+                    if len(memory)>memory_length:
+                        del memory[0]
+                    if done:
+                        memory.append((state,action,reward,next_state,done))
+                        if reward == self.env.reward_win:
+#                            reward = -reward
+                            reward = self.env.reward_lose
+                        old_next_state = self.env.switch_state(next_state)
+                        memory.append((old_state,old_action,reward,old_next_state,done))
+                        break
+                    
+                    #save to analse
                     if self.analyse:
                         ## save cumulative state
                         if e>0:
@@ -189,19 +210,11 @@ class Q_agent:
                         else:
                             temp = state * 0
                             np.save('state',temp)
-                        
-                        
-                    action, next_state, done, reward = self.act(state)
-                    total_reward += reward
-                    if len(memory)>memory_length:
-                        del memory[0]
-                    if done:
-                        memory.append((state,action,reward,next_state,done))
-                        if reward == self.env.reward_win:
-#                            reward = -reward
-                            reward = self.env.reward_notdone
-                        memory.append((old_state,old_action,reward,next_state,done))
-                        break
+                        ## 
+                        if self.analyse_full:
+                            if not os.path.exists('analyse'):
+                                os.makedirs('analyse')
+                            np.save('analyse/{:010.0f}_{:010.0f}'.format(e,turn),state)
 # =============================================================================
 #           One player game
 # =============================================================================
