@@ -177,17 +177,12 @@ class Q_agent:
                 
                 while True:
                     ## update memory
-                    if turn != 0:
+                    if turn != 0 and not done:
                         old_next_state = self.env.switch_state(next_state)
                         memory.append((old_state,old_action,old_reward,old_next_state,done))
                     turn += 1
-                    old_action = deepcopy(action); old_state = deepcopy(state)
-                    old_reward = reward
-                    state = self.env.switch_state(next_state)
-       
-                    action, next_state, done, reward = self.act(state)
-                    total_reward += reward
-                    ## keep memory length
+                    
+                    
                     if len(memory)>memory_length:
                         del memory[0]
                     if done:
@@ -198,6 +193,14 @@ class Q_agent:
                         old_next_state = self.env.switch_state(next_state)
                         memory.append((old_state,old_action,reward,old_next_state,done))
                         break
+                    
+                    old_action = deepcopy(action); old_state = deepcopy(state)
+                    old_reward = reward
+                    state = self.env.switch_state(next_state)
+                    action, next_state, done, reward = self.act(state)
+                    total_reward += reward
+                    ## keep memory length
+                    
                     
                     #save to analse
                     if self.analyse:
