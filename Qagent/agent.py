@@ -1,7 +1,7 @@
 from keras.models import Sequential
 from keras.layers import Activation, InputLayer, Dense
 from keras.optimizers import Nadam, SGD, RMSprop
-from keras.models import load_model
+from keras.models import load_model, clone_model
 from keras import callbacks
 import random
 import numpy as np
@@ -22,13 +22,13 @@ class Q_agent:
         self.double_q = True
         ##
         self.analyse = True
-        self.analyse_full = True
+        self.analyse_full = False
         
-    def act(self, state):
+    def act(self, state, turn, agent_nr):
         '''
         Returns the action, next state, final state and reward based on current state
         '''
-        action = self.get_action(state)
+        action = self.get_action(state, turn, agent_nr)
         next_state = self.env.get_next_state(state,action)
         reward, done = self.env.get_reward(next_state)
         return action, next_state, done, reward
@@ -46,22 +46,25 @@ class Q_agent:
         for layer in range(len(N)):
             model.add(Dense(N[layer], activation='relu'))
         model.add(Dense(self.env.action_size, activation='linear'))
-        model.compile(loss='mse', optimizer=RMSprop(lr=learning_rate), metrics=['mae'])
+        model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
         return model
 
-    def get_action(self, state):
+    def get_action(self, state, turn = 0, agent_nr = 0):
         '''
         Get action for current state
         '''
         ## no randonness during prediction
-        if self.training == False:
-            self.epsilon = 0
-        ## Exploration vs. Exploitation
-        if np.random.rand() <= self.epsilon:
-            act_values = np.random.rand(1, self.env.action_size)
+        if not self.training:
+                self.epsilon = 0
+        if turn % 2 == 0:           
+            ## Exploration vs. Exploitation
+            if np.random.rand() <= self.epsilon:
+                act_values = np.random.rand(1, self.env.action_size)
+            else:
+                act_values = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
         else:
-            act_values = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
-        ## Constrain
+            act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
+            ## Constrain
         ind = self.env.get_constrain(state)
         act_values[0,ind] = -1000
         action = np.argmax(act_values)
@@ -70,6 +73,10 @@ class Q_agent:
         else:
             return action, act_values
 
+            
+            
+            
+            
     def save_model(self, fname):     
         '''
         Stores the model at the given path
@@ -82,7 +89,7 @@ class Q_agent:
         Loads the model from a given path
         '''
         model = load_model(fname)
-        #model.load_weights('temp_previous.h5')
+        model.load_weights('temp_previous.h5')
         self.model = model
     
     def create_model(self,N, learning_rate):
@@ -144,7 +151,9 @@ class Q_agent:
                       gamma             =   0.95, 
                       memory_length     =   1000,
                       breaks            =   10,
-                      model_update_freq=10):
+                      model_update_freq =   10,
+                      opponent_freq     =   100,
+                      max_agent_pool    =   10):
         '''
         Train the Qagent
         '''
@@ -162,10 +171,11 @@ class Q_agent:
         self.model.save_weights('temp_previous.h5')
         self.model.save_weights('temp_value_model.h5')
         current_epoch = 0
-
-        for e in range(episodes):
-            state = self.env.get_initial_state()
+        self.list_agents = [clone_model(self.model)]         
             
+        for e in range(episodes):
+            state = self.env.get_initial_state() 
+            agent_nr = random.randint(0,len(self.list_agents)-1)
             turn = 0
 # =============================================================================
 #       Two player game
@@ -173,31 +183,34 @@ class Q_agent:
             if self.env.players == 2:
                 old_state = 0; old_action = 0; old_reward = 0
                 ## first move
-                action, next_state, done, reward = self.act(state)
+                action, next_state, done, reward = self.act(state,turn,agent_nr)
                 
                 while True:
                     ## update memory
                     if turn != 0 and not done:
                         old_next_state = self.env.switch_state(next_state)
-                        memory.append((old_state,old_action,old_reward,old_next_state,done))
+                        if np.sum(old_state)%2==0:
+                            memory.append((old_state,old_action,old_reward,old_next_state,done))
                     turn += 1
                     
                     
                     if len(memory)>memory_length:
                         del memory[0]
                     if done:
-                        memory.append((state,action,reward,next_state,done))
+                        if np.sum(state)%2==0:
+                            memory.append((state,action,reward,next_state,done))
                         if reward == self.env.reward_win:
 #                            reward = -reward
                             reward = self.env.reward_lose
                         old_next_state = self.env.switch_state(next_state)
-                        memory.append((old_state,old_action,reward,old_next_state,done))
+                        if np.sum(old_state)%2==0:
+                            memory.append((old_state,old_action,reward,old_next_state,done))
                         break
                     
                     old_action = deepcopy(action); old_state = deepcopy(state)
                     old_reward = reward
                     state = self.env.switch_state(next_state)
-                    action, next_state, done, reward = self.act(state)
+                    action, next_state, done, reward = self.act(state, turn, agent_nr)
                     total_reward += reward
                     ## keep memory length
                     
@@ -248,6 +261,16 @@ class Q_agent:
             if self.double_q and e % model_update_freq == 0:
                 self.value_model.load_weights('temp_value_model.h5')
                 self.model.save_weights('temp_value_model.h5')
+                
+            if e % opponent_freq == 0 and e > 0:
+                # if len(agent_pool) > max_agent_pool
+                if len(self.list_agents) > max_agent_pool:
+                    random.shuffle(self.list_agents)
+                    self.list_agents[-1].set_weights(self.model.get_weights()) 
+                else:
+                    self.list_agents.append(clone_model(self.model))
+                    self.list_agents[-1].set_weights(self.model.get_weights())                
+                
 # =============================================================================
 #           Train netwerk
 # =============================================================================
