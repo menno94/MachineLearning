@@ -116,36 +116,36 @@ class env_TTT:
     def test_skill(self, model):
         win = 0; draw = 0; lose = 0;
         for j in range(12):
-            for i in range(3):          # loop was van iets ouds, lekker laten zo!
-                state = self.get_initial_state()
-                while True:  
-                    ind = self.get_constrain(state)
-                    act_values = np.random.rand(1, self.action_size)
-                    act_values[0,ind] = -1000
-                    action = np.argmax(act_values)
-                    next_state = self.get_next_state(state,action)
-                    if self.check_win(next_state):
-                        lose += 1
-                        # score -= 1
-                        break
-                    if self.check_draw(next_state):
-                        draw += 1
-                        break                
-                    state = self.switch_state(next_state)
-                    ind = self.get_constrain(state)
-                    act_values = model.predict(state.reshape(1,18))
-                    act_values[0,ind] = -1000
-                    action = np.argmax(act_values)
-                    next_state = self.get_next_state(state, action)
-                    if self.check_win(next_state):
-                        win += 1
-                        break
-                    if self.check_draw(next_state):
-                        draw += 1
-                        break
-                    state = self.switch_state(next_state)
+            # for i in range(3):          # loop was van iets ouds, lekker laten zo!
+            #     state = self.get_initial_state()
+            #     while True:  
+            #         ind = self.get_constrain(state)
+            #         act_values = np.random.rand(1, self.action_size)
+            #         act_values[0,ind] = -1000
+            #         action = np.argmax(act_values)
+            #         next_state = self.get_next_state(state,action)
+            #         if self.check_win(next_state):
+            #             lose += 1
+            #             # score -= 1
+            #             break
+            #         if self.check_draw(next_state):
+            #             draw += 1
+            #             break                
+            #         state = self.switch_state(next_state)
+            #         ind = self.get_constrain(state)
+            #         act_values = model.predict(state.reshape(1,18))
+            #         act_values[0,ind] = -1000
+            #         action = np.argmax(act_values)
+            #         next_state = self.get_next_state(state, action)
+            #         if self.check_win(next_state):
+            #             win += 1
+            #             break
+            #         if self.check_draw(next_state):
+            #             draw += 1
+            #             break
+            #         state = self.switch_state(next_state)
                     
-            for i in range(3):
+            for i in range(6):
                 state = self.get_initial_state()
                 while True:
                     ind = self.get_constrain(state)

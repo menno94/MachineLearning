@@ -10,9 +10,9 @@ if __name__ =='__main__':
     Q = Q_agent(env)
     Q.analyse = True
     now = datetime.datetime.now()
-    Q.create_model(N = [80,40],
-                   learning_rate = 1e-4)
-    episodes = 100000
+    Q.create_model(N = [60,45,30],
+                   learning_rate = 1e-3)
+    episodes = 10000
     epsilon_min = 0.1
     percentage = 0.4
     decay = epsilon_min**(1/(percentage*episodes))
@@ -23,8 +23,10 @@ if __name__ =='__main__':
             batch_size          =   64,
             gamma               =   0.9,
             memory_length       =   500,
-            breaks              =   250,
-            model_update_freq   =   500)
+            breaks              =   50,
+            model_update_freq   =   500,
+            opponent_freq       =   200,
+            max_agent_pool      =   10)
    
     Q.save_model('TTT.h5')
     
