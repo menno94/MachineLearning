@@ -1,6 +1,6 @@
 from keras.models import Sequential
 from keras.layers import Activation, InputLayer, Dense
-from keras.optimizers import Nadam
+from keras.optimizers import Nadam, SGD, RMSprop
 from keras.models import load_model
 from keras import callbacks
 import random
@@ -21,8 +21,8 @@ class Q_agent:
         ## double q
         self.double_q = True
         ##
-        self.analyse = False
-        self.analyse_full = False
+        self.analyse = True
+        self.analyse_full = True
         
     def act(self, state):
         '''
@@ -46,7 +46,7 @@ class Q_agent:
         for layer in range(len(N)):
             model.add(Dense(N[layer], activation='relu'))
         model.add(Dense(self.env.action_size, activation='linear'))
-        model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
+        model.compile(loss='mse', optimizer=RMSprop(lr=learning_rate), metrics=['mae'])
         return model
 
     def get_action(self, state):
@@ -273,7 +273,7 @@ class Q_agent:
                     target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
                     target_f[0][action] = target
 
-                    stats = self.model.fit(state.reshape(1, np.prod(self.env.state_shape)), target_f,
+                    stats = self.model.fit(state.reshape(1, np.prod(self.env.state_shape)), target_f,batch_size=1,
                                            epochs=current_epoch + 1, initial_epoch=current_epoch, verbose=0)
                     #callback# stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=current_epoch+1, initial_epoch=current_epoch, verbose=0,callbacks=[self.tbCallBack], validation_split = 0.2)
                     ## update averaged error based

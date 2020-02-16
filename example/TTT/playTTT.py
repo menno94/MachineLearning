@@ -21,6 +21,8 @@ if __name__ == '__main__':
         turn_player         = True
         first_turn_player   = 0     #True
         start = input("[P]layer or [A]i")
+        if start == 'q':
+            break
         if start == "A":
             turn_player         = False
             first_turn_player   = 1 #False

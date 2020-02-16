@@ -16,10 +16,11 @@ class env_TTT:
         # moves are numpad (1 - 9)
         self.action_size = 9
         self.players = 2
-        self.reward_win = 10
-        self.reward_draw = 2
+        # De reward structure 1/0/-1 was de meest stabiele, ook omdat dit zero-sum is, wat ik nog niet helemaal honderd procent snap
+        self.reward_win = 1
+        self.reward_draw = 0
         self.reward_notdone = 0
-        self.reward_lose = -10
+        self.reward_lose = -1
         self.create_test_states()
 
     def create_test_states(self):
@@ -67,10 +68,9 @@ class env_TTT:
     
     def get_constrain(self,state):
         tmp_state = state.copy()
-        if np.sum(tmp_state) == 0:
-            a = [2,3,5,6,7,8]
-            tmp_state[0,a] = 1
-            self.rotation = randint(0,3)
+        # if np.sum(tmp_state) == 0:
+        #     a = [2,3,5,6,7,8]
+        #     tmp_state[0,a] = 1
         temp = np.sum(tmp_state,axis=0)
         ind = np.where(temp == 1)
         return ind
@@ -114,24 +114,69 @@ class env_TTT:
         return switched_state
     
     def test_skill(self, model):
-        missed_value = 0
-        for i in range(9):
-            state = self.get_initial_state()
-            state[0,i] = 1
-            state = self.switch_state(state)
-            while True:
-                ind = self.get_constrain(state)
-                act_values = model.predict(state.reshape(1,18))
-                act_values[0,ind] = -1000
-                action = np.argmax(act_values)
-                next_state = self.get_next_state(state, action)
-                missed_value += self.value_move(state, action)
-                if self.check_win(next_state):
-                    break
-                if self.check_draw(next_state):
-                    break
-                state = self.switch_state(next_state)
-        return missed_value
+        win = 0; draw = 0; lose = 0;
+        for j in range(12):
+            for i in range(3):          # loop was van iets ouds, lekker laten zo!
+                state = self.get_initial_state()
+                while True:  
+                    ind = self.get_constrain(state)
+                    act_values = np.random.rand(1, self.action_size)
+                    act_values[0,ind] = -1000
+                    action = np.argmax(act_values)
+                    next_state = self.get_next_state(state,action)
+                    if self.check_win(next_state):
+                        lose += 1
+                        # score -= 1
+                        break
+                    if self.check_draw(next_state):
+                        draw += 1
+                        break                
+                    state = self.switch_state(next_state)
+                    ind = self.get_constrain(state)
+                    act_values = model.predict(state.reshape(1,18))
+                    act_values[0,ind] = -1000
+                    action = np.argmax(act_values)
+                    next_state = self.get_next_state(state, action)
+                    if self.check_win(next_state):
+                        win += 1
+                        break
+                    if self.check_draw(next_state):
+                        draw += 1
+                        break
+                    state = self.switch_state(next_state)
+                    
+            for i in range(3):
+                state = self.get_initial_state()
+                while True:
+                    ind = self.get_constrain(state)
+                    act_values = model.predict(state.reshape(1,18))
+                    act_values[0,ind] = -1000
+                    action = np.argmax(act_values)
+                    next_state = self.get_next_state(state, action)
+
+                    if self.check_win(next_state):
+                        win += 1
+                        break
+                    if self.check_draw(next_state):
+                        draw += 1
+                        break
+                    state = self.switch_state(next_state)
+                    ind = self.get_constrain(state)
+                    act_values = np.random.rand(1, self.action_size)
+                    act_values[0,ind] = -1000
+                    action = np.argmax(act_values)
+                    next_state = self.get_next_state(state,action)
+                    if self.check_win(next_state):
+                        # score -= 1
+                        lose += 1
+                        break
+                    if self.check_draw(next_state):
+                        draw += 1
+                        break                
+                    state = self.switch_state(next_state)
+        print('win={} draw={} lose={}'.format(win, draw, lose))
+        score = win
+        return score
             
     def value_move(self,state,action):
         scores = []
