@@ -89,7 +89,7 @@ class Q_agent:
         Loads the model from a given path
         '''
         model = load_model(fname)
-        model.load_weights('temp_previous.h5')
+        #model.load_weights('temp_previous.h5')
         self.model = model
     
     def create_model(self,N, learning_rate):
@@ -219,13 +219,10 @@ class Q_agent:
                     if self.analyse:
                         ## save cumulative state
                         if e>0:
-                            temp = np.load('state.npy')
-                            temp = temp + state
-                            np.save('state',temp)
+                            state_sum = state_sum + state
                         ## save first state as zero
                         else:
-                            temp = state * 0
-                            np.save('state',temp)
+                            state_sum = state * 0
                         ## 
                         if self.analyse_full:
                             if not os.path.exists('analyse'):
@@ -247,13 +244,10 @@ class Q_agent:
                     if self.analyse:
                         ## save cumulative state
                         if e>0:
-                            temp = np.load('state.npy')
-                            temp = temp + state
-                            np.save('state',temp)
+                            state_sum = state_sum + state
                         ## save first state as zero
                         else:
-                            temp = state * 0
-                            np.save('state',temp)
+                            state_sum = state * 0
                     if done:
                         break
 
@@ -318,6 +312,10 @@ class Q_agent:
 
 
 ### Alle regels hieronder Cntrl+1
+        ##
+        if self.analyse:
+            np.save('sum_state.npy',state_sum)
+                    
         with open('stats.txt','r') as f:
             lines = f.readlines()
 
