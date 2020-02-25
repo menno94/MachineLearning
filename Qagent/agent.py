@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 import os
 
+from optimal_agent import optimal_agent
+
 class Q_agent:
     def __init__(self, env, training = True):
         ## environment
@@ -64,6 +66,9 @@ class Q_agent:
                 act_values = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
         else:
             act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
+            ## optimal qagent
+            #action = optimal_agent(state)
+            #act_values[0,action] = 10.000
             ## Constrain
         ind = self.env.get_constrain(state)
         act_values[0,ind] = -1000
@@ -174,47 +179,47 @@ class Q_agent:
         self.list_agents = [clone_model(self.model)]         
             
         for e in range(episodes):
-            state = self.env.get_initial_state() 
-            agent_nr = random.randint(0,len(self.list_agents)-1)
-            turn = 0
+            state       = self.env.get_initial_state() 
+            agent_nr    = random.randint(0,len(self.list_agents)-1)
+            turn        = random.randint(0,1)
+            if turn == 1:
+                action2, next_state2, done2, reward2 = self.act(state, turn, agent_nr)
+                state = self.env.switch_state(next_state2)
 # =============================================================================
 #       Two player game
 # =============================================================================
             if self.env.players == 2:
-                old_state = 0; old_action = 0; old_reward = 0
                 ## first move
                 action, next_state, done, reward = self.act(state,turn,agent_nr)
                 
                 while True:
-                    ## update memory
-                    if turn != 0 and not done:
-                        old_next_state = self.env.switch_state(next_state)
-                        if np.sum(old_state)%2==0:
-                            memory.append((old_state,old_action,old_reward,old_next_state,done))
-                    turn += 1
-                    
-                    
-                    if len(memory)>memory_length:
-                        del memory[0]
+                    ## player x (move)
+                    action, next_state, done, reward = self.act(state,turn,agent_nr)
+                    ## if done (memory append next_state) only win or draw
                     if done:
-                        if np.sum(state)%2==0:
-                            memory.append((state,action,reward,next_state,done))
-                        if reward == self.env.reward_win:
-#                            reward = -reward
-                            reward = self.env.reward_lose
-                        old_next_state = self.env.switch_state(next_state)
-                        if np.sum(old_state)%2==0:
-                            memory.append((old_state,old_action,reward,old_next_state,done))
+                        memory.append((state,action, reward, next_state,True))
                         break
+                    ## change turn
+                    turn += 1
+                    ## player o 
+                    state2 = self.env.switch_state(next_state)
+                    action2, next_state2, done2, reward2 = self.act(state2, turn, agent_nr)
                     
-                    old_action = deepcopy(action); old_state = deepcopy(state)
-                    old_reward = reward
-                    state = self.env.switch_state(next_state)
-                    action, next_state, done, reward = self.act(state, turn, agent_nr)
+                    if done2:
+                        if reward2==self.env.reward_win:
+                            reward = self.env.reward_lose
+                        state2 = self.env.switch_state(next_state2)
+                        memory.append((state,action, reward,state2,done2))
+                        break
+                        
+                    
+                    state2 = self.env.switch_state(next_state2)
+
+                    memory.append((state,action, reward,state2,done2))
+                    state = state2
+                    turn += 1
+                    ## ---
                     total_reward += reward
-                    ## keep memory length
-                    
-                    
                     #save to analse
                     if self.analyse:
                         ## save cumulative state
