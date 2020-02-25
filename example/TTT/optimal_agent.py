@@ -92,6 +92,7 @@ def optimal_agent(state):
         if opponent[0,ii] == 1 and opponent[2,ii] == 1:
             if player_array[3+ii]==0:
                 return 3+ii      
+        
     ## prevent lose by a diagonal
     if   opponent[0,0] == 1 and opponent[2,2] == 1  and player[1,1]==0:  
         return 4
@@ -111,23 +112,36 @@ def optimal_agent(state):
         return 4
     ## first move as o (middle or -corner)
     if np.sum(state)==1:
-        if state[1][4]==0:
-            return 4
-        else:
-            I = np.random.randint(4)
+        if opponent[4]==1:
             tmp = [0,2,6,8]
+            I = np.random.randint(4)
             return tmp[I]
-      
+        else:
+            return 4
+ 
         
     ## second move as x (corner)
     if np.sum(state[0])==1 and np.sum(state[1])==1:
+        ## only if o is not in a corner you can win
+
+        ## win by a corner
+        tmp = [0,2,6,8]
+        
+        I = np.random.randint(4)
+        while True:
+            if state[1][tmp[I]]==0:
+                return tmp[I]
+            I = np.random.randint(4)
+    
+        
+    ## third move as x (corner)
+    if np.sum(state[0])==2 and np.sum(state[1])==2:
         tmp = [0,2,6,8]
         I = np.random.randint(4)
         while True:
             if state[1][tmp[I]]==0:
                 return tmp[I]
             I = np.random.randint(4)
-
 
 
     ## other move
