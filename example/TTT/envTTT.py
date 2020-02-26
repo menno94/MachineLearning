@@ -2,12 +2,13 @@
 """
 Created on Wed Aug 29 20:38:40 2018
 
-@author: Arjen
+@author: Arjen 
 """
 
 import numpy as np
 from random import randint
 from operator import xor
+from optimal_agent import optimal_agent
 
 class env_TTT:
     def __init__(self):
@@ -150,6 +151,8 @@ class env_TTT:
                 while True:
                     ind = self.get_constrain(state)
                     act_values = model.predict(state.reshape(1,18))
+                    opt_action = optimal_agent(state)
+                    act_values[opt_action] = 1000
                     act_values[0,ind] = -1000
                     action = np.argmax(act_values)
                     next_state = self.get_next_state(state, action)

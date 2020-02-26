@@ -112,7 +112,7 @@ def optimal_agent(state):
         return 4
     ## first move as o (middle or -corner)
     if np.sum(state)==1:
-        if opponent[4]==1:
+        if opponent_array[4]==1:
             tmp = [0,2,6,8]
             I = np.random.randint(4)
             return tmp[I]

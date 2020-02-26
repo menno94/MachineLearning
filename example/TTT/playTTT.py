@@ -1,5 +1,5 @@
 import numpy as np
-
+from optimal_agent import optimal_agent
 import sys, os
 
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'Qagent'))
@@ -44,7 +44,8 @@ if __name__ == '__main__':
                 else:
                     action-=1
             else:
-                action, values = Q.get_action(state)            
+                action, values = Q.get_action(state)       
+                # action = optimal_agent(state)
             
             
             next_state = env.get_next_state(state,action)
