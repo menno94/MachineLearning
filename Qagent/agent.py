@@ -67,8 +67,8 @@ class Q_agent:
         else:
             act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
             ## optimal qagent
-            #action = optimal_agent(state)
-            #act_values[0,action] = 10.000
+            # action = optimal_agent(state)
+            # act_values[0,action] = 10.000
             ## Constrain
         ind = self.env.get_constrain(state)
         act_values[0,ind] = -1000
@@ -197,7 +197,7 @@ class Q_agent:
                     action, next_state, done, reward = self.act(state,turn,agent_nr)
                     ## if done (memory append next_state) only win or draw
                     if done:
-                        memory.append((state,action, reward, next_state,True))
+                        memory.append((state,action, reward, next_state,True,0))
                         break
                     ## change turn
                     turn += 1
@@ -209,25 +209,27 @@ class Q_agent:
                         if reward2==self.env.reward_win:
                             reward = self.env.reward_lose
                         state2 = self.env.switch_state(next_state2)
-                        memory.append((state,action, reward,state2,done2))
+                        memory.append((state,action, reward,state2,done2,0))
                         break
                         
                     
                     state2 = self.env.switch_state(next_state2)
 
-                    memory.append((state,action, reward,state2,done2))
+                    memory.append((state,action, reward,state2,done2,0))
                     state = state2
                     turn += 1
                     ## ---
                     total_reward += reward
+                    while len(memory)>memory_length:
+                            del memory[0]
                     #save to analse
                     if self.analyse:
                         ## save cumulative state
-                        if e>0:
-                            state_sum = state_sum + state
+                        if e==0:
+                            state_sum = state * 0
                         ## save first state as zero
                         else:
-                            state_sum = state * 0
+                            state_sum = state_sum + state
                         ## 
                         if self.analyse_full:
                             if not os.path.exists('analyse'):
@@ -241,7 +243,7 @@ class Q_agent:
                     turn += 1
                     action, next_state, done, reward = self.act(state)
                     total_reward += reward
-                    memory.append((state,action,reward,next_state,done))
+                    memory.append((state,action,reward,next_state,done,0))
                     if len(memory)>memory_length:
                         del memory[0]
                     state = next_state.copy()
@@ -276,10 +278,24 @@ class Q_agent:
             if len(memory) >= batch_size:
                 ## model from previous episode
                 self.previous_model.load_weights('temp_previous.h5')
-                minibatch = random.sample(memory, batch_size)
+                p = np.zeros(len(memory))
+                for ii in range(len(memory)):
+                    p[ii] = memory[ii][-1]
+                if np.sum(p) == 0:
+                    p[:] = 1
+                
+                I = np.where(p==0)
+                p[I]=np.mean(p)
+                p = p/np.sum(p)
+                index = np.random.choice(len(memory),batch_size,False,p)
+                minibatch = []
+                for i in range(len(index)):
+                    minibatch.append(memory[index[i]])
+                # minibatch = random.sample(memory, batch_size)
                 errortmp    = []
                 losstmp     = []
-                for state, action, reward, next_state, done in minibatch:
+                
+                for jj, (state, action, reward, next_state, done, _) in enumerate( minibatch):
                     if not done:
                         if self.double_q:
                             target_move = np.argmax(
@@ -300,7 +316,11 @@ class Q_agent:
                     #callback# stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=current_epoch+1, initial_epoch=current_epoch, verbose=0,callbacks=[self.tbCallBack], validation_split = 0.2)
                     ## update averaged error based
                     errortmp.append(stats.history['mean_absolute_error'][0])
-                    losstmp.append(stats.history['loss'][0])
+                    current_loss = stats.history['loss'][0]
+                    temp = list(memory[index[jj]])
+                    temp[-1] = current_loss
+                    memory[index[jj]] = tuple(temp)
+                    losstmp.append(current_loss)
 
                 ## update epoch after full memory
                 current_epoch = current_epoch + 1
