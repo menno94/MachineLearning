@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from copy import deepcopy
 import os
 
-from optimal_agent import optimal_agent
+
 
 class Q_agent:
     def __init__(self, env, training = True):
@@ -25,14 +25,15 @@ class Q_agent:
         ##
         self.analyse = True
         self.analyse_full = False
+        self.opponent_optimal = False
         
-    def act(self, state, turn, agent_nr):
+    def act(self, state, turn = 0, agent_nr =0):
         '''
         Returns the action, next state, final state and reward based on current state
         '''
-        action = self.get_action(state, turn, agent_nr)
-        next_state = self.env.get_next_state(state,action)
-        reward, done = self.env.get_reward(next_state)
+        action          = self.get_action(state, turn, agent_nr)
+        next_state      = self.env.get_next_state(state,action)
+        reward, done    = self.env.get_reward(next_state)
         return action, next_state, done, reward
     
     def buildmodel(self, N, learning_rate):
@@ -65,11 +66,12 @@ class Q_agent:
             else:
                 act_values = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
         else:
-            act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
             ## optimal qagent
-            # action = optimal_agent(state)
-            # act_values[0,action] = 10.000
-            ## Constrain
+            if self.opponent_optimal:
+                action = self.env.optimalAgent(state)
+            else:      
+                act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
+        ## Constrain
         ind = self.env.get_constrain(state)
         act_values[0,ind] = -1000
         action = np.argmax(act_values)
@@ -180,15 +182,17 @@ class Q_agent:
             
         for e in range(episodes):
             state       = self.env.get_initial_state() 
-            agent_nr    = random.randint(0,len(self.list_agents)-1)
-            turn        = random.randint(0,1)
-            if turn == 1:
-                action2, next_state2, done2, reward2 = self.act(state, turn, agent_nr)
-                state = self.env.switch_state(next_state2)
+            
 # =============================================================================
 #       Two player game
 # =============================================================================
             if self.env.players == 2:
+                agent_nr    = random.randint(0,len(self.list_agents)-1)
+                turn        = random.randint(0,1)
+                if turn == 1:
+                    action2, next_state2, done2, reward2 = self.act(state, turn, agent_nr)
+                state = self.env.switch_state(next_state2)
+                
                 ## first move
                 action, next_state, done, reward = self.act(state,turn,agent_nr)
                 
@@ -239,8 +243,8 @@ class Q_agent:
 #           One player game
 # =============================================================================
             else:    # If 1 player game
+                turn = 0
                 while True:
-                    turn += 1
                     action, next_state, done, reward = self.act(state)
                     total_reward += reward
                     memory.append((state,action,reward,next_state,done,0))
