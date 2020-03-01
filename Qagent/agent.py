@@ -22,9 +22,11 @@ class Q_agent:
         self.delay_model = True
         ## double q
         self.double_q = True
-        ##
+        ## store data about training
         self.analyse = True
+        ## store all states (works only if self.analyse=True)
         self.analyse_full = False
+        ## apply a optimal agent as opponent
         self.opponent_optimal = False
         
     def act(self, state, turn = 0, agent_nr =0):
@@ -112,28 +114,24 @@ class Q_agent:
             self.value_model = self.buildmodel(N, learning_rate)
         print("Finished building the model")
 
-    def evaluate(self, total_R, e, error, loss, loss_std):
-
-
-        ## score
-        Qtesttmp = np.zeros(2)
+    def evaluate(self, total_R, e, error_list, loss_list):
+        ''' 
+        Evaluate agent
+        '''
+        error = np.mean(error_list)
+        loss  = np.mean(loss_list)
+        ## mean Q score for test states
+        Qtest_mean = np.zeros(2)
         for i, item in enumerate(self.env.test_states):
             value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
-            Qtesttmp[1] = Qtesttmp[0] + (np.amax(value) - Qtesttmp[0]) / (i + 1)
-        #tmp = evaluation['Q']
-        #tmp.append(Qtesttmp[1])
-        #evaluation['Q'] = tmp
+            Qtest_mean[1] = Qtest_mean[0] + (np.amax(value) - Qtest_mean[0]) / (i + 1)
 
-        ## test scores
-        #tmp = evaluation['score']
+        ## score from test_skill function
         score = self.env.test_skill(self.model)
-        #tmp.append(score)
-        #evaluation['score'] = tmp
 
         ## open file
-
         f = open('stats.txt','a')
-        f.write('e={}\teps={}\tQ={}\tscore={}\ttotal_R={}\tloss={}\tacc={}\n'.format(e, self.epsilon, Qtesttmp[1], score, total_R, loss, error))
+        f.write('e={}\teps={}\tQ={}\tscore={}\ttotal_R={}\tloss={}\tacc={}\n'.format(e, self.epsilon, Qtest_mean[1], score, total_R, loss, error))
         f.close()
 
         ## print results
@@ -194,11 +192,13 @@ class Q_agent:
                     state = self.env.switch_state(next_state2)
                 
                 ## first move
-                action, next_state, done, reward = self.act(state,turn,agent_nr)
+                #action, next_state, done, reward = self.act(state,turn,agent_nr)
                 
                 while True:
                     ## player x (move)
                     action, next_state, done, reward = self.act(state,turn,agent_nr)
+                    ## update total reward
+                    total_reward += reward
                     ## if done (memory append next_state) only win or draw
                     if done:
                         memory.append((state,action, reward, next_state,True,0))
@@ -223,7 +223,6 @@ class Q_agent:
                     state = state2
                     turn += 1
                     ## ---
-                    total_reward += reward
                     while len(memory)>memory_length:
                             del memory[0]
                     #save to analse
@@ -281,7 +280,9 @@ class Q_agent:
 # =============================================================================
             if len(memory) >= batch_size:
                 ## model from previous episode
-                self.previous_model.load_weights('temp_previous.h5')
+                if not self.double_q and self.delay_model:
+                    self.previous_model.load_weights('temp_previous.h5')
+                ## prioritized learning  
                 p = np.zeros(len(memory))
                 for ii in range(len(memory)):
                     p[ii] = memory[ii][-1]
@@ -296,8 +297,8 @@ class Q_agent:
                 for i in range(len(index)):
                     minibatch.append(memory[index[i]])
                 # minibatch = random.sample(memory, batch_size)
-                errortmp    = []
-                losstmp     = []
+                error_list    = []
+                loss_list     = []
                 
                 for jj, (state, action, reward, next_state, done, _) in enumerate( minibatch):
                     if not done:
@@ -319,23 +320,25 @@ class Q_agent:
                                            epochs=current_epoch + 1, initial_epoch=current_epoch, verbose=0)
                     #callback# stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=current_epoch+1, initial_epoch=current_epoch, verbose=0,callbacks=[self.tbCallBack], validation_split = 0.2)
                     ## update averaged error based
-                    errortmp.append(stats.history['mean_absolute_error'][0])
+                    error_list.append(stats.history['mean_absolute_error'][0])
                     current_loss = stats.history['loss'][0]
-                    temp = list(memory[index[jj]])
-                    temp[-1] = current_loss
-                    memory[index[jj]] = tuple(temp)
-                    losstmp.append(current_loss)
+                    loss_list.append(current_loss)
+                    ## update weights in memory needed for prioritized learning 
+                    temp                = list(memory[index[jj]])
+                    temp[-1]            = current_loss
+                    memory[index[jj]]   = tuple(temp)
 
                 ## update epoch after full memory
                 current_epoch = current_epoch + 1
                 ## save model weights
-                self.model.save_weights('temp_previous.h5')
+                if not self.double_q and self.delay_model:
+                    self.model.save_weights('temp_previous.h5')
                 ## adjust opsilon
                 if self.epsilon > epsilon_min:
                     self.epsilon *= epsilon_decay
                 if e % breaks == 0 and e>0:
                     ## stats
-                    total_reward = self.evaluate(total_reward,e,np.mean(errortmp),np.mean(losstmp),np.std(losstmp))
+                    total_reward = self.evaluate(total_reward,e,error_list,loss_list)
 
 
 
@@ -344,6 +347,8 @@ class Q_agent:
         ##
         if self.analyse:
             np.save('sum_state.npy',state_sum)
+
+
                     
         with open('stats.txt','r') as f:
             lines = f.readlines()
@@ -378,7 +383,7 @@ class Q_agent:
 
         N = max(1,int(len(episode)/5))
         ## plot results
-        plt.figure(figsize=[10,10])
+        plt.figure(figsize=[12,12])
         plt.suptitle("Results", fontsize=16)
 
         ax1 = plt.subplot(6,1,1)
