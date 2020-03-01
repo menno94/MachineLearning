@@ -24,10 +24,10 @@ class env_TTT:
         self.reward_lose = -1
         self.create_test_states()
 
-    def optimalAgent(state):
+    def optimalAgent(self,state):
         move = optimal_agent(state)
-        tmp = np.zeros(self.action_size)
-        tmp[move] = 10
+        tmp = np.zeros((1,self.action_size))
+        tmp[0,move] = 10
         return tmp
 
     def create_test_states(self):
@@ -184,7 +184,7 @@ class env_TTT:
                         break                
                     state = self.switch_state(next_state)
         print('win={} draw={} lose={}'.format(win, draw, lose))
-        score = win
+        score = win/(12*6)
         return score
             
     def value_move(self,state,action):
