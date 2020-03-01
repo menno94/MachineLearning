@@ -158,7 +158,7 @@ class env_TTT:
                     ind = self.get_constrain(state)
                     act_values = model.predict(state.reshape(1,18))
                     opt_action = optimal_agent(state)
-                    act_values[opt_action] = 1000
+                    act_values[0,opt_action] = 1000
                     act_values[0,ind] = -1000
                     action = np.argmax(act_values)
                     next_state = self.get_next_state(state, action)
