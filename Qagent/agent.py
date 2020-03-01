@@ -72,7 +72,7 @@ class Q_agent:
         else:
             ## optimal qagent
             if self.opponent_optimal:
-                action = self.env.optimalAgent(state)
+                act_values = self.env.optimalAgent(state)
             else:      
                 act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
         ## Constrain
