@@ -191,7 +191,7 @@ class Q_agent:
                 turn        = random.randint(0,1)
                 if turn == 1:
                     action2, next_state2, done2, reward2 = self.act(state, turn, agent_nr)
-                state = self.env.switch_state(next_state2)
+                    state = self.env.switch_state(next_state2)
                 
                 ## first move
                 action, next_state, done, reward = self.act(state,turn,agent_nr)
