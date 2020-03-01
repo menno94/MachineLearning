@@ -28,6 +28,8 @@ class Q_agent:
         self.analyse_full = False
         ## apply a optimal agent as opponent
         self.opponent_optimal = False
+        ## prioritized replay
+        self.prioritized_replay = True
         
     def act(self, state, turn = 0, agent_nr =0):
         '''
@@ -114,7 +116,7 @@ class Q_agent:
             self.value_model = self.buildmodel(N, learning_rate)
         print("Finished building the model")
 
-    def evaluate(self, total_R, e, error_list, loss_list):
+    def evaluate(self, total_R, e, error_list, loss_list,P):
         ''' 
         Evaluate agent
         '''
@@ -128,10 +130,14 @@ class Q_agent:
 
         ## score from test_skill function
         score = self.env.test_skill(self.model)
-
+        
+        ##
+        mean_p  = np.mean(P)
+        std_p   = np.std(P)
+        
         ## open file
         f = open('stats.txt','a')
-        f.write('e={}\teps={}\tQ={}\tscore={}\ttotal_R={}\tloss={}\tacc={}\n'.format(e, self.epsilon, Qtest_mean[1], score, total_R, loss, error))
+        f.write('e={}\teps={}\tQ={}\tscore={}\ttotal_R={}\tloss={}\tacc={}\tmeanP={}\tstdP={}\n'.format(e, self.epsilon, Qtest_mean[1], score, total_R, loss, error,mean_p,std_p))
         f.close()
 
         ## print results
@@ -282,16 +288,21 @@ class Q_agent:
                 ## model from previous episode
                 if not self.double_q and self.delay_model:
                     self.previous_model.load_weights('temp_previous.h5')
-                ## prioritized learning  
+                ## distribution of memory entries 
                 p = np.zeros(len(memory))
-                for ii in range(len(memory)):
-                    p[ii] = memory[ii][-1]
+                ## prioritized replay
+                if self.prioritized_replay:
+                    for ii in range(len(memory)):
+                        p[ii] = memory[ii][-1]
+                    ## set values of 0 to mean loss
+                    I       = np.where(p==0)
+                    p[I]    = np.mean(p)
+                ## if all entries are 0 set to 1.
                 if np.sum(p) == 0:
                     p[:] = 1
-                
-                I = np.where(p==0)
-                p[I]=np.mean(p)
+                ## normalise p
                 p = p/np.sum(p)
+                ## choose entries from memory given a distribution p
                 index = np.random.choice(len(memory),batch_size,False,p)
                 minibatch = []
                 for i in range(len(index)):
@@ -338,7 +349,7 @@ class Q_agent:
                     self.epsilon *= epsilon_decay
                 if e % breaks == 0 and e>0:
                     ## stats
-                    total_reward = self.evaluate(total_reward,e,error_list,loss_list)
+                    total_reward = self.evaluate(total_reward,e,error_list,loss_list,p)
 
 
 
@@ -360,6 +371,8 @@ class Q_agent:
         totalR = []
         loss = []
         acc = []
+        mean_p = []
+        std_p = []
         for line in lines:
             for item in line.split('\t'):
                 var, number = item.split('=')
@@ -378,15 +391,17 @@ class Q_agent:
                     loss.append(number)
                 if var =='acc':
                     acc.append(number)
-
-
+                if var =='meanP':
+                    mean_p.append(number)
+                if var =='stdP':
+                    std_p.append(number)
 
         N = max(1,int(len(episode)/5))
         ## plot results
         plt.figure(figsize=[12,12])
         plt.suptitle("Results", fontsize=16)
 
-        ax1 = plt.subplot(6,1,1)
+        ax1 = plt.subplot(7,1,1)
         ax1.plot(episode, score,'.-')
         ax1.plot(episode, np.convolve(score, np.ones((N,)) / N, mode='same'))
 
@@ -395,14 +410,14 @@ class Q_agent:
         plt.grid('on')
         ax1.set_xticklabels([])
 
-        ax2 = plt.subplot(6,1,2)
+        ax2 = plt.subplot(7,1,2)
         ax2.plot(episode, epsilon,'.-')
         plt.ylabel('Epsilon')
         plt.title('Epsilon per epoch')
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(6,1,3)
+        ax2 = plt.subplot(7,1,3)
         ax2.plot(episode,totalR,'.-')
         ax2.plot(episode, np.convolve(totalR, np.ones((N,))/N, mode='same'))
         plt.ylabel('Total reward') ## total reward 
@@ -410,7 +425,7 @@ class Q_agent:
         plt.grid('on')
         ax2.set_xticklabels([])
 
-        ax2 = plt.subplot(6,1,4)
+        ax2 = plt.subplot(7,1,4)
         ax2.plot(episode,Qtest,'.-')
         ax2.plot(episode, np.convolve(Qtest, np.ones((N,)) / N, mode='same'))
         plt.title('Averaged Q value for given test states')
@@ -418,7 +433,7 @@ class Q_agent:
         plt.grid('on')
         ax2.set_xticklabels([])
        
-        ax2 = plt.subplot(6,1,5)
+        ax2 = plt.subplot(7,1,5)
         ax2.plot(episode,acc,'.-')
         ax2.plot(episode, np.convolve(acc, np.ones((N,)) / N, mode='same'))
         plt.ylabel('Accuracy')
@@ -426,7 +441,7 @@ class Q_agent:
         plt.grid('on')
         ax2.set_xticklabels([])
               
-        ax = plt.subplot(6,1,6)
+        ax = plt.subplot(7,1,6)
         ax.plot(episode,loss,'.-')
         ax.plot(episode, np.convolve(loss, np.ones((N,)) / N, mode='same'))
         ax.set_yscale('log')
@@ -435,6 +450,17 @@ class Q_agent:
         plt.grid('on')
         plt.xlabel('Episode')
         
+        ax = plt.subplot(7,1,7)
+        ax.plot(episode,mean_p,'.-')
+        ax.plot(episode,std_p,'.-')
+        ax.plot(episode, np.convolve(mean_p, np.ones((N,)) / N, mode='same'))
+        
+        ax.plot(episode, np.convolve(std_p, np.ones((N,)) / N, mode='same'))
+        plt.ylabel('P')
+        plt.legend(['mean','std'])
+        plt.title('stats of prioritized replay function')
+        plt.grid('on')
+        plt.xlabel('Episode')        
 
         plt.xlabel('Episode')
         plt.savefig('results.png')
