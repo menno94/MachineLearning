@@ -24,6 +24,12 @@ class env_TTT:
         self.reward_lose = -1
         self.create_test_states()
 
+    def optimalAgent(state):
+        move = optimal_agent(state)
+        tmp = np.zeros(self.action_size)
+        tmp[move] = 10
+        return tmp
+
     def create_test_states(self):
 
         state1 = self.get_initial_state()
