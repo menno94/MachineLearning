@@ -1,5 +1,5 @@
 from keras.models import Sequential
-from keras.layers import Activation, InputLayer, Dense
+from keras.layers import Activation, InputLayer, Dense, Conv2D, MaxPooling2D, Flatten
 from keras.optimizers import Nadam, SGD, RMSprop
 from keras.models import load_model, clone_model
 from keras import callbacks
@@ -31,6 +31,8 @@ class Q_agent:
         ## prioritized replay
         self.prioritized_replay = True
         
+        self.conv = False
+        
     def act(self, state, turn = 0, agent_nr =0):
         '''
         Returns the action, next state, final state and reward based on current state
@@ -49,10 +51,34 @@ class Q_agent:
         
         ## create model
         model = Sequential()
-        model.add(InputLayer(input_shape = (np.prod(self.env.state_shape),) )) # Vreeeeeemd
+        model.add(InputLayer(input_shape = (np.prod(self.env.state_shape),) ))
+        # np.prod is not need when using flatten: model.add(InputLayer(input_shape = (self.env.state_shape) )) 
         for layer in range(len(N)):
             model.add(Dense(N[layer], activation='relu'))
+        # np.prod is not need when using flatten: model.add(Flatten())
         model.add(Dense(self.env.action_size, activation='linear'))
+        model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
+        return model
+
+    def buildmodel_conv(self, learning_rate):
+        '''
+        Build the model with len(N) layers and N[i] neurons per layer.
+        '''
+        ## calback for tensorboard
+        self.tbCallBack = callbacks.TensorBoard(log_dir='./Graph', histogram_freq=100, write_graph=True, write_images=False, write_grads=True)
+        
+        ## create model
+        model = Sequential()
+        model.add(Conv2D(32, kernel_size=(2, 2), strides=(1, 1),
+                 activation='relu',
+                 input_shape=(self.env.state_shape) )) 
+        #model.add(MaxPooling2D(pool_size=(2, 2), strides=(1, 1)))
+        model.add(Conv2D(64, (1, 1), activation='relu'))
+        model.add(MaxPooling2D(pool_size=(1, 1)))
+        model.add(Flatten())
+        model.add(Dense(100, activation='relu'))
+        model.add(Dense(self.env.action_size, activation='softmax'))
+
         model.compile(loss='mse', optimizer=Nadam(lr=learning_rate), metrics=['mae'])
         return model
 
@@ -68,13 +94,13 @@ class Q_agent:
             if np.random.rand() <= self.epsilon:
                 act_values = np.random.rand(1, self.env.action_size)
             else:
-                act_values = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
+                act_values = self.model.predict(self.state_to_predict(state))
         else:
             ## optimal qagent
             if self.opponent_optimal:
                 act_values = self.env.optimalAgent(state)
             else:      
-                act_values = self.list_agents[agent_nr].predict(state.reshape(1,np.prod(self.env.state_shape)))
+                act_values = self.list_agents[agent_nr].predict(self.state_to_predict(state))
         ## Constrain
         ind = self.env.get_constrain(state)
         act_values[0,ind] = -1000
@@ -85,7 +111,12 @@ class Q_agent:
             return action, act_values
 
             
-            
+    def state_to_predict(self,state):
+        if self.conv:
+            return state[np.newaxis,:]
+        else:
+            return state.reshape(1,np.prod(self.env.state_shape))
+            ## np.prod is not need when using flatten: return state[np.newaxis,:]
             
             
     def save_model(self, fname):     
@@ -108,12 +139,21 @@ class Q_agent:
         Create model from scratch.
         N = list with the neurons in the hidden layers
         '''
-        self.model = self.buildmodel(N, learning_rate)
+        if self.conv:
+            self.model = self.buildmodel_conv(learning_rate)
+        else:
+            self.model = self.buildmodel(N, learning_rate)
         ## delay model
         if self.delay_model:
-            self.previous_model = self.buildmodel(N, learning_rate)
+            if self.conv:
+                self.previous_model = self.buildmodel_conv(learning_rate)
+            else:
+                self.previous_model = self.buildmodel(N, learning_rate)
         if self.double_q:
-            self.value_model = self.buildmodel(N, learning_rate)
+            if self.conv:
+                self.value_model = self.buildmodel_conv(learning_rate)
+            else:
+                self.value_model = self.buildmodel(N, learning_rate)
         print("Finished building the model")
 
     def evaluate(self, total_R, e, error_list, loss_list,P):
@@ -125,7 +165,7 @@ class Q_agent:
         ## mean Q score for test states
         Qtest_mean = np.zeros(2)
         for i, item in enumerate(self.env.test_states):
-            value = self.model.predict(item.reshape(1, np.prod(self.env.state_shape)))
+            value = self.model.predict(self.state_to_predict(item))
             Qtest_mean[1] = Qtest_mean[0] + (np.amax(value) - Qtest_mean[0]) / (i + 1)
 
         ## score from test_skill function
@@ -315,19 +355,20 @@ class Q_agent:
                     if not done:
                         if self.double_q:
                             target_move = np.argmax(
-                                self.model.predict(next_state.reshape(1, np.prod(self.env.state_shape)))[0])
-                            target = reward + gamma * self.value_model.predict(next_state.reshape(1, np.prod(self.env.state_shape)))[0][target_move]
+                                self.model.predict(self.state_to_predict(state))[0])
+                            target = reward + gamma * self.value_model.predict(self.state_to_predict(state))[0][target_move]
+
                         else:
                             if self.delay_model:
-                                target = reward + gamma * np.amax(self.previous_model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                                target = reward + gamma * np.amax(self.previous_model.predict(self.state_to_predict(state))[0])
                             else:
-                                target = reward + gamma * np.amax(self.model.predict(next_state.reshape(1,np.prod(self.env.state_shape)))[0])
+                                target = reward + gamma * np.amax(self.model.predict(self.state_to_predict(state))[0])
                     else:
                         target = reward
-                    target_f = self.model.predict(state.reshape(1,np.prod(self.env.state_shape)))
+                    target_f = self.model.predict(self.state_to_predict(state))
                     target_f[0][action] = target
 
-                    stats = self.model.fit(state.reshape(1, np.prod(self.env.state_shape)), target_f,batch_size=1,
+                    stats = self.model.fit(self.state_to_predict(state), target_f,batch_size=1,
                                            epochs=current_epoch + 1, initial_epoch=current_epoch, verbose=0)
                     #callback# stats = self.model.fit(state.reshape(1,np.prod(self.env.state_shape)), target_f, epochs=current_epoch+1, initial_epoch=current_epoch, verbose=0,callbacks=[self.tbCallBack], validation_split = 0.2)
                     ## update averaged error based
